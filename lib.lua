@@ -1,10 +1,25 @@
--- GameSense Lib V6 - Final
--- Anti-Duplicate, Animated Notifications, Orion API Parity, Game-Specific Configs.
+-- GameSense Lib V6.1 - Fixed
+-- Fixed ClipsDescendants Typo, Better Anti-Duplication
 
--- Anti-Duplicate System
-if getgenv().GameSense_UI_Instance then
-	pcall(function() getgenv().GameSense_UI_Instance:Destroy() end)
-end
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Extremely Safe Anti-Duplicate System
+pcall(function()
+	for _, v in ipairs(CoreGui:GetChildren()) do
+		if v.Name == "GameSenseUI" then v:Destroy() end
+	end
+	if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") then
+		for _, v in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
+			if v.Name == "GameSenseUI" then v:Destroy() end
+		end
+	end
+end)
 
 local GameSenseLib = {
 	Flags = {},
@@ -23,14 +38,6 @@ local GameSenseLib = {
 		Font = Enum.Font.Code
 	}
 }
-
-local CoreGui = game:GetService("CoreGui")
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
-local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
 
 local makefolder = makefolder or function() end
 local isfolder = isfolder or function() return false end
@@ -66,9 +73,7 @@ function GameSenseLib:MakeWindow(options)
 	ScreenGui.ResetOnSpawn = false
 	pcall(function() ScreenGui.Parent = CoreGui end)
 	if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
-	
 	self.Gui = ScreenGui
-	getgenv().GameSense_UI_Instance = ScreenGui -- Store for anti-duplication
 
 	-- Notification Container
 	local NotifContainer = Instance.new("Frame")
@@ -92,7 +97,7 @@ function GameSenseLib:MakeWindow(options)
 
 		local NotifFrame = Instance.new("Frame")
 		NotifFrame.Size = UDim2.new(1, 0, 0, 50)
-		NotifFrame.Position = UDim2.new(1, 300, 0, 0) -- Starts off-screen
+		NotifFrame.Position = UDim2.new(1, 300, 0, 0)
 		NotifFrame.BackgroundColor3 = self.Theme.MenuBg
 		NotifFrame.BorderColor3 = self.Theme.Outline
 		NotifFrame.ZIndex = 1000
@@ -138,7 +143,6 @@ function GameSenseLib:MakeWindow(options)
 		NContent.ZIndex = 1001
 		NContent.Parent = NotifFrame
 		
-		-- Tween In
 		local tweenIn = TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)})
 		tweenIn:Play()
 		
@@ -188,7 +192,7 @@ function GameSenseLib:MakeWindow(options)
 	InnerMain.Position = UDim2.new(0, 1, 0, 1)
 	InnerMain.BackgroundColor3 = self.Theme.MenuBg
 	InnerMain.BorderColor3 = self.Theme.Outline
-	InnerMain.ClipDescendants = true
+	InnerMain.ClipsDescendants = true -- FIXED TYPO HERE
 	InnerMain.Parent = Main
 
 	local TopBar = Instance.new("Frame")
@@ -223,7 +227,7 @@ function GameSenseLib:MakeWindow(options)
 	ContentContainer.Position = UDim2.new(0, 61, 0, 2)
 	ContentContainer.BackgroundColor3 = self.Theme.Background
 	ContentContainer.BorderSizePixel = 0
-	ContentContainer.ClipDescendants = true
+	ContentContainer.ClipsDescendants = true -- FIXED TYPO HERE
 	ContentContainer.Parent = InnerMain
 
 	local keybindConnection = UserInputService.InputBegan:Connect(function(input, gpe)
@@ -262,7 +266,7 @@ function GameSenseLib:MakeWindow(options)
 		LeftCol.Position = UDim2.new(0, 10, 0, 10)
 		LeftCol.BackgroundTransparency = 1
 		LeftCol.ScrollBarThickness = 0
-		LeftCol.ClipDescendants = true
+		LeftCol.ClipsDescendants = true -- FIXED TYPO HERE
 		LeftCol.Parent = TabContent
 		local LeftLayout = Instance.new("UIListLayout")
 		LeftLayout.Padding = UDim.new(0, 15)
@@ -273,7 +277,7 @@ function GameSenseLib:MakeWindow(options)
 		RightCol.Position = UDim2.new(0.5, 5, 0, 10)
 		RightCol.BackgroundTransparency = 1
 		RightCol.ScrollBarThickness = 0
-		RightCol.ClipDescendants = true
+		RightCol.ClipsDescendants = true -- FIXED TYPO HERE
 		RightCol.Parent = TabContent
 		local RightLayout = Instance.new("UIListLayout")
 		RightLayout.Padding = UDim.new(0, 15)
@@ -845,7 +849,7 @@ function GameSenseLib:MakeWindow(options)
 		return TabObj
 	end
 
-	-- SETTINGS TAB (WATERMARK, HOLDS KEYBINDS ETC.)
+	-- AUTOMATIC UNREMOVABLE SETTINGS TAB
 	local BuiltInSettings = WindowObj:MakeTab({ Name = "Settings", Icon = "rbxassetid://7734053495" })
 	BuiltInSettings.TabBtn.LayoutOrder = 99999
 
@@ -859,9 +863,6 @@ function GameSenseLib:MakeWindow(options)
 
 	local TrackerSec = BuiltInSettings:AddSection({ Name = "Trackers", Side = "Right" })
 	TrackerSec:AddToggle({ Name = "Watermark", Default = true, Callback = function(v) GameSenseLib:SetWatermarkVisibility(v) end })
-	
-	local kbListContainer = Instance.new("Frame")
-	kbListContainer.Parent = TrackerSec
 	
 	TrackerSec:AddToggle({ 
 		Name = "Keybinds List", 
@@ -888,7 +889,7 @@ function GameSenseLib:MakeWindow(options)
 		local success, encoded = pcall(function() return HttpService:JSONEncode(saveTable) end)
 		if success then 
 			writefile(self.ConfigFolder .. "/" .. tostring(game.PlaceId) .. "_" .. filename .. ".json", encoded)
-			GameSenseLib:MakeNotification({Name = "Config Saved", Content = "Saved " .. filename, Time = 3})
+			GameSenseLib:MakeNotification({Name = "Config Saved", Content = "Saved " .. filename .. " for this game.", Time = 3})
 		end
 	end
 
@@ -902,6 +903,8 @@ function GameSenseLib:MakeWindow(options)
 				end
 				GameSenseLib:MakeNotification({Name = "Config Loaded", Content = "Loaded " .. filename, Time = 3})
 			end
+		else
+			GameSenseLib:MakeNotification({Name = "Error", Content = "Config not found for this game.", Time = 3})
 		end
 	end
 
@@ -909,6 +912,7 @@ function GameSenseLib:MakeWindow(options)
 		if self.Gui then self.Gui:Destroy() end 
 		if keybindConnection then keybindConnection:Disconnect() end
 	end
+	
 	function GameSenseLib:Init() end
 
 	return WindowObj
