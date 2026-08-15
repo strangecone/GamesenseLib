@@ -1,5 +1,5 @@
--- GameSense Lib V8 - Final Polish
--- Fixed API Crash, Restored Tracker Functions, Full Orion Parity.
+-- GameSense Lib V9 - The Ultimate Version
+-- Fixed Popup Coordinates, Added Rainbow Color Pickers, Screen Inset Fixes.
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -9,19 +9,14 @@ local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
--- 100% Crash-Proof Anti-Duplicate System
 pcall(function()
 	if getgenv().GameSense_UI_Instance then
 		getgenv().GameSense_UI_Instance:Destroy()
 		getgenv().GameSense_UI_Instance = nil
 	end
-	for _, v in pairs(CoreGui:GetChildren()) do
-		if v.Name == "GameSenseUI" then v:Destroy() end
-	end
+	for _, v in pairs(CoreGui:GetChildren()) do if v.Name == "GameSenseUI" then v:Destroy() end end
 	if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") then
-		for _, v in pairs(LocalPlayer.PlayerGui:GetChildren()) do
-			if v.Name == "GameSenseUI" then v:Destroy() end
-		end
+		for _, v in pairs(LocalPlayer.PlayerGui:GetChildren()) do if v.Name == "GameSenseUI" then v:Destroy() end end
 	end
 end)
 
@@ -68,7 +63,6 @@ local function MakeDraggable(topbarobject, object)
 	end)
 end
 
--- Global Visibility Functions API (Fixes the crash!)
 function GameSenseLib:SetWatermarkVisibility(state)
 	if self.Watermark then self.Watermark.Visible = state end
 end
@@ -84,6 +78,7 @@ function GameSenseLib:MakeWindow(options)
 	local ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = "GameSenseUI"
 	ScreenGui.ResetOnSpawn = false
+	ScreenGui.IgnoreGuiInset = true -- FIXES POPUP POSITIONING OFFSETS!
 	pcall(function() ScreenGui.Parent = CoreGui end)
 	if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 	
@@ -186,7 +181,6 @@ function GameSenseLib:MakeWindow(options)
 	end
 	PopupCatcher.MouseButton1Click:Connect(ClosePopups)
 
-	-- WATERMARK
 	local Watermark = Instance.new("TextLabel")
 	Watermark.Size = UDim2.new(0, 250, 0, 20)
 	Watermark.Position = UDim2.new(1, -260, 0, 10)
@@ -213,7 +207,6 @@ function GameSenseLib:MakeWindow(options)
 	})
 	uiGrad.Parent = WMGradient
 
-	-- KEYBINDS FRAME
 	local KeybindsFrame = Instance.new("Frame")
 	KeybindsFrame.Size = UDim2.new(0, 180, 0, 25)
 	KeybindsFrame.Position = UDim2.new(0, 10, 0.5, 0)
@@ -249,7 +242,6 @@ function GameSenseLib:MakeWindow(options)
 		if Watermark.Visible then 
 			Watermark.Text = string.format(" gamesense | %s | %d fps", LocalPlayer.Name, math.floor(1/dt)) 
 		end
-		
 		if KeybindsFrame.Visible then
 			local count = 0
 			for _, bind in ipairs(GameSenseLib.Binds) do
@@ -261,7 +253,6 @@ function GameSenseLib:MakeWindow(options)
 					elseif bind.Mode == "Hold" then 
 						for _, k in pairs(UserInputService:GetKeysPressed()) do if k.KeyCode == bind.Key then isActive = true break end end
 					elseif bind.Mode == "Toggle" then isActive = bind.Toggled end
-					
 					bind.Label.TextColor3 = isActive and GameSenseLib.Theme.Accent or GameSenseLib.Theme.Text
 					bind.Label.Text = string.format(" %s [%s]", bind.Name, bind.Mode)
 				else
@@ -298,12 +289,7 @@ function GameSenseLib:MakeWindow(options)
 	TopBar.BorderSizePixel = 0
 	TopBar.ZIndex = 50
 	TopBar.Parent = InnerMain
-	local uiGradClone = Instance.new("UIGradient")
-	uiGradClone.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(59, 175, 222)), ColorSequenceKeypoint.new(0.3, Color3.fromRGB(202, 105, 235)),
-		ColorSequenceKeypoint.new(0.6, Color3.fromRGB(235, 198, 105)), ColorSequenceKeypoint.new(1, Color3.fromRGB(168, 235, 105))
-	})
-	uiGradClone.Parent = TopBar
+	uiGrad:Clone().Parent = TopBar
 
 	local Sidebar = Instance.new("Frame")
 	Sidebar.Size = UDim2.new(0, 60, 1, -2)
@@ -311,12 +297,10 @@ function GameSenseLib:MakeWindow(options)
 	Sidebar.BackgroundColor3 = self.Theme.MenuBg
 	Sidebar.BorderColor3 = self.Theme.Outline
 	Sidebar.Parent = InnerMain
-
 	local SidebarLayout = Instance.new("UIListLayout")
 	SidebarLayout.Padding = UDim.new(0, 5)
 	SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder 
 	SidebarLayout.Parent = Sidebar
-	
 	local SidebarPadding = Instance.new("UIPadding")
 	SidebarPadding.PaddingTop = UDim.new(0, 15) 
 	SidebarPadding.Parent = Sidebar
@@ -610,12 +594,10 @@ function GameSenseLib:MakeWindow(options)
 					ClosePopups()
 					PopupCatcher.Visible = true
 
-					local relX = (MainBtn.AbsolutePosition.X - Main.AbsolutePosition.X) / uiScale.Scale
-					local relY = (MainBtn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
-
+					-- FIXED POPUP MATH: Absolute Position avoids scale bugs!
 					local DropContainer = Instance.new("Frame")
-					DropContainer.Size = UDim2.new(0, MainBtn.AbsoluteSize.X / uiScale.Scale, 0, #(opt.Options or {}) * 18)
-					DropContainer.Position = UDim2.new(0, relX, 0, relY + 20)
+					DropContainer.Size = UDim2.new(0, MainBtn.AbsoluteSize.X, 0, #(opt.Options or {}) * 18)
+					DropContainer.Position = UDim2.new(0, MainBtn.AbsolutePosition.X, 0, MainBtn.AbsolutePosition.Y + 20)
 					DropContainer.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					DropContainer.BorderColor3 = GameSenseLib.Theme.Outline
 					DropContainer.ZIndex = 101
@@ -636,7 +618,6 @@ function GameSenseLib:MakeWindow(options)
 						Btn.TextXAlignment = Enum.TextXAlignment.Left
 						Btn.ZIndex = 102
 						Btn.Parent = DropContainer
-
 						Btn.MouseButton1Click:Connect(function() Set(item) ClosePopups() end)
 					end
 				end)
@@ -700,13 +681,11 @@ function GameSenseLib:MakeWindow(options)
 					ClosePopups()
 					PopupCatcher.Visible = true
 
-					local relX = (Btn.AbsolutePosition.X - Main.AbsolutePosition.X) / uiScale.Scale
-					local relY = (Btn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
-
 					local Modes = {"Always", "Hold", "Toggle"}
 					local DropContainer = Instance.new("Frame")
 					DropContainer.Size = UDim2.new(0, 60, 0, #Modes * 18)
-					DropContainer.Position = UDim2.new(0, relX, 0, relY + 18)
+					-- FIXED POPUP MATH
+					DropContainer.Position = UDim2.new(0, Btn.AbsolutePosition.X, 0, Btn.AbsolutePosition.Y + 18)
 					DropContainer.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					DropContainer.BorderColor3 = GameSenseLib.Theme.Outline
 					DropContainer.ZIndex = 101
@@ -747,6 +726,9 @@ function GameSenseLib:MakeWindow(options)
 			
 			function SectionObj:AddColorpicker(opt)
 				local h, s, v = Color3.toHSV(opt.Default or Color3.fromRGB(255,0,0))
+				local rainbow = false
+				local rbConn = nil
+
 				local Frame = Instance.new("Frame")
 				Frame.Size = UDim2.new(1, 0, 0, 15)
 				Frame.BackgroundTransparency = 1
@@ -770,6 +752,8 @@ function GameSenseLib:MakeWindow(options)
 				Btn.Text = ""
 				Btn.Parent = Frame
 				
+				local activeSVMap = nil
+
 				local function Set(clr)
 					if type(clr) == "table" then h,s,v = clr[1],clr[2],clr[3] else h,s,v = Color3.toHSV(clr) end
 					local c = Color3.fromHSV(h, s, v)
@@ -778,16 +762,32 @@ function GameSenseLib:MakeWindow(options)
 					if opt.Callback then pcall(opt.Callback, c) end
 				end
 
+				local function ToggleRainbow(state)
+					rainbow = state
+					if rainbow then
+						if not rbConn then
+							rbConn = RunService.RenderStepped:Connect(function()
+								h = (tick() % 5) / 5
+								local c = Color3.fromHSV(h, s, v)
+								Btn.BackgroundColor3 = c
+								if activeSVMap and activeSVMap.Parent then activeSVMap.BackgroundColor3 = Color3.fromHSV(h, 1, 1) end
+								if opt.Flag then GameSenseLib.Flags[opt.Flag] = {h, s, v} end
+								if opt.Callback then pcall(opt.Callback, c) end
+							end)
+						end
+					else
+						if rbConn then rbConn:Disconnect(); rbConn = nil end
+					end
+				end
+
 				Btn.MouseButton1Click:Connect(function()
 					ClosePopups()
 					PopupCatcher.Visible = true
 					
-					local relX = (Btn.AbsolutePosition.X - Main.AbsolutePosition.X) / uiScale.Scale
-					local relY = (Btn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
-
 					local Picker = Instance.new("Frame")
-					Picker.Size = UDim2.new(0, 150, 0, 150)
-					Picker.Position = UDim2.new(0, relX - 125, 0, relY + 15)
+					Picker.Size = UDim2.new(0, 140, 0, 165)
+					-- FIXED POPUP MATH
+					Picker.Position = UDim2.new(0, Btn.AbsolutePosition.X - 115, 0, Btn.AbsolutePosition.Y + 15)
 					Picker.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					Picker.BorderColor3 = GameSenseLib.Theme.Outline
 					Picker.ZIndex = 101
@@ -802,6 +802,7 @@ function GameSenseLib:MakeWindow(options)
 					SVMap.AutoButtonColor = false
 					SVMap.ZIndex = 102
 					SVMap.Parent = Picker
+					activeSVMap = SVMap
 
 					local WGrad = Instance.new("UIGradient", Instance.new("Frame", SVMap))
 					WGrad.Parent.Size = UDim2.new(1,0,1,0) WGrad.Parent.BackgroundColor3 = Color3.new(1,1,1) WGrad.Parent.BorderSizePixel = 0 WGrad.Parent.ZIndex = 103
@@ -813,7 +814,7 @@ function GameSenseLib:MakeWindow(options)
 
 					local HueMap = Instance.new("TextButton")
 					HueMap.Size = UDim2.new(0, 130, 0, 15)
-					HueMap.Position = UDim2.new(0, 5, 0, 130)
+					HueMap.Position = UDim2.new(0, 5, 0, 127)
 					HueMap.BackgroundColor3 = Color3.new(1,1,1)
 					HueMap.BorderSizePixel = 0
 					HueMap.Text = ""
@@ -828,6 +829,26 @@ function GameSenseLib:MakeWindow(options)
 					})
 					HGrad.Parent = HueMap
 
+					-- RAINBOW TOGGLE ADDED TO POPUP
+					local RbToggle = Instance.new("TextButton")
+					RbToggle.Size = UDim2.new(1, -10, 0, 15)
+					RbToggle.Position = UDim2.new(0, 5, 0, 145)
+					RbToggle.BackgroundColor3 = GameSenseLib.Theme.DarkOutline
+					RbToggle.BorderColor3 = GameSenseLib.Theme.Outline
+					RbToggle.Text = rainbow and "Rainbow: ON" or "Rainbow: OFF"
+					RbToggle.TextColor3 = rainbow and GameSenseLib.Theme.Accent or GameSenseLib.Theme.Text
+					RbToggle.Font = GameSenseLib.Theme.Font
+					RbToggle.TextSize = 11
+					RbToggle.ZIndex = 102
+					RbToggle.Parent = Picker
+
+					RbToggle.MouseButton1Click:Connect(function()
+						rainbow = not rainbow
+						RbToggle.Text = rainbow and "Rainbow: ON" or "Rainbow: OFF"
+						RbToggle.TextColor3 = rainbow and GameSenseLib.Theme.Accent or GameSenseLib.Theme.Text
+						ToggleRainbow(rainbow)
+					end)
+
 					local draggingSV, draggingH = false, false
 					
 					local function UpdateSV(input)
@@ -836,6 +857,7 @@ function GameSenseLib:MakeWindow(options)
 						Set({h,s,v})
 					end
 					local function UpdateH(input)
+						if rainbow then ToggleRainbow(false); RbToggle.Text = "Rainbow: OFF"; RbToggle.TextColor3 = GameSenseLib.Theme.Text end
 						h = math.clamp((input.Position.X - HueMap.AbsolutePosition.X) / HueMap.AbsoluteSize.X, 0, 1)
 						SVMap.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
 						Set({h,s,v})
@@ -959,7 +981,6 @@ function GameSenseLib:MakeWindow(options)
 		return TabObj
 	end
 
-	-- BUILT-IN SETTINGS TAB
 	local BuiltInSettings = WindowObj:MakeTab({ Name = "Settings", Icon = "rbxassetid://7734053495" })
 	BuiltInSettings.TabBtn.LayoutOrder = 99999
 
@@ -969,18 +990,8 @@ function GameSenseLib:MakeWindow(options)
 
 	local TrackerSec = BuiltInSettings:AddSection({ Name = "HUD Tracking", Side = "Right" })
 	
-	-- Connects to the Global Visibility Functions!
-	TrackerSec:AddToggle({ 
-		Name = "Watermark", 
-		Default = true, 
-		Callback = function(v) GameSenseLib:SetWatermarkVisibility(v) end 
-	})
-	
-	TrackerSec:AddToggle({ 
-		Name = "Keybinds List", 
-		Default = true, 
-		Callback = function(v) GameSenseLib:SetKeybindsVisibility(v) end 
-	})
+	TrackerSec:AddToggle({ Name = "Watermark", Default = true, Callback = function(v) GameSenseLib:SetWatermarkVisibility(v) end })
+	TrackerSec:AddToggle({ Name = "Keybinds List", Default = true, Callback = function(v) GameSenseLib:SetKeybindsVisibility(v) end })
 
 	function GameSenseLib:SaveConfig(filename)
 		if not isfolder(self.ConfigFolder) then makefolder(self.ConfigFolder) end
