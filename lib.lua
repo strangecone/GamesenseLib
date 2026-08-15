@@ -1,17 +1,23 @@
--- GameSense Lib v4
--- Fixed Clipping, Green Keybinds, and Robust Config System.
+-- GameSense Lib V6 - Final
+-- Anti-Duplicate, Animated Notifications, Orion API Parity, Game-Specific Configs.
+
+-- Anti-Duplicate System
+if getgenv().GameSense_UI_Instance then
+	pcall(function() getgenv().GameSense_UI_Instance:Destroy() end)
+end
 
 local GameSenseLib = {
 	Flags = {},
 	Elements = {},
 	Binds = {},
+	MenuKey = Enum.KeyCode.Insert,
 	ConfigFolder = "GameSense",
 	Theme = {
 		Background = Color3.fromRGB(23, 23, 23),
 		MenuBg = Color3.fromRGB(17, 17, 17),
 		Outline = Color3.fromRGB(45, 45, 45),
 		DarkOutline = Color3.fromRGB(10, 10, 10),
-		Accent = Color3.fromRGB(149, 194, 43), -- GameSense Green
+		Accent = Color3.fromRGB(149, 194, 43),
 		Text = Color3.fromRGB(200, 200, 200),
 		DarkText = Color3.fromRGB(130, 130, 130),
 		Font = Enum.Font.Code
@@ -23,9 +29,9 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
--- File System Fallbacks
 local makefolder = makefolder or function() end
 local isfolder = isfolder or function() return false end
 local isfile = isfile or function() return false end
@@ -36,12 +42,8 @@ local function MakeDraggable(topbarobject, object)
 	local Dragging, DragInput, DragStart, StartPosition
 	topbarobject.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-			Dragging = true
-			DragStart = input.Position
-			StartPosition = object.Position
-			input.Changed:Connect(function()
-				if input.UserInputState == Enum.UserInputState.End then Dragging = false end
-			end)
+			Dragging = true DragStart = input.Position StartPosition = object.Position
+			input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then Dragging = false end end)
 		end
 	end)
 	topbarobject.InputChanged:Connect(function(input)
@@ -64,7 +66,88 @@ function GameSenseLib:MakeWindow(options)
 	ScreenGui.ResetOnSpawn = false
 	pcall(function() ScreenGui.Parent = CoreGui end)
 	if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+	
 	self.Gui = ScreenGui
+	getgenv().GameSense_UI_Instance = ScreenGui -- Store for anti-duplication
+
+	-- Notification Container
+	local NotifContainer = Instance.new("Frame")
+	NotifContainer.Size = UDim2.new(0, 250, 1, -20)
+	NotifContainer.Position = UDim2.new(1, -260, 0, 10)
+	NotifContainer.BackgroundTransparency = 1
+	NotifContainer.ZIndex = 1000
+	NotifContainer.Parent = ScreenGui
+	
+	local NotifLayout = Instance.new("UIListLayout")
+	NotifLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	NotifLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+	NotifLayout.Padding = UDim.new(0, 10)
+	NotifLayout.Parent = NotifContainer
+
+	-- Public Notification Function
+	function GameSenseLib:MakeNotification(opt)
+		local title = opt.Name or "Notification"
+		local content = opt.Content or ""
+		local time = opt.Time or 5
+
+		local NotifFrame = Instance.new("Frame")
+		NotifFrame.Size = UDim2.new(1, 0, 0, 50)
+		NotifFrame.Position = UDim2.new(1, 300, 0, 0) -- Starts off-screen
+		NotifFrame.BackgroundColor3 = self.Theme.MenuBg
+		NotifFrame.BorderColor3 = self.Theme.Outline
+		NotifFrame.ZIndex = 1000
+		NotifFrame.Parent = NotifContainer
+
+		local NGrad = Instance.new("Frame")
+		NGrad.Size = UDim2.new(1, 0, 0, 1)
+		NGrad.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+		NGrad.BorderSizePixel = 0
+		NGrad.ZIndex = 1001
+		NGrad.Parent = NotifFrame
+		
+		local UIG = Instance.new("UIGradient")
+		UIG.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(59, 175, 222)), ColorSequenceKeypoint.new(0.3, Color3.fromRGB(202, 105, 235)),
+			ColorSequenceKeypoint.new(0.6, Color3.fromRGB(235, 198, 105)), ColorSequenceKeypoint.new(1, Color3.fromRGB(168, 235, 105))
+		})
+		UIG.Parent = NGrad
+
+		local NTitle = Instance.new("TextLabel")
+		NTitle.Size = UDim2.new(1, -10, 0, 15)
+		NTitle.Position = UDim2.new(0, 5, 0, 5)
+		NTitle.BackgroundTransparency = 1
+		NTitle.Text = title
+		NTitle.TextColor3 = self.Theme.Text
+		NTitle.Font = self.Theme.Font
+		NTitle.TextSize = 13
+		NTitle.TextXAlignment = Enum.TextXAlignment.Left
+		NTitle.ZIndex = 1001
+		NTitle.Parent = NotifFrame
+
+		local NContent = Instance.new("TextLabel")
+		NContent.Size = UDim2.new(1, -10, 1, -25)
+		NContent.Position = UDim2.new(0, 5, 0, 20)
+		NContent.BackgroundTransparency = 1
+		NContent.Text = content
+		NContent.TextColor3 = self.Theme.DarkText
+		NContent.Font = self.Theme.Font
+		NContent.TextSize = 12
+		NContent.TextXAlignment = Enum.TextXAlignment.Left
+		NContent.TextYAlignment = Enum.TextYAlignment.Top
+		NContent.TextWrapped = true
+		NContent.ZIndex = 1001
+		NContent.Parent = NotifFrame
+		
+		-- Tween In
+		local tweenIn = TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(0, 0, 0, 0)})
+		tweenIn:Play()
+		
+		task.delay(time, function()
+			local tweenOut = TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(1, 300, 0, 0)})
+			tweenOut:Play()
+			tweenOut.Completed:Connect(function() NotifFrame:Destroy() end)
+		end)
+	end
 
 	-- Global Popup Layer
 	local PopupContainer = Instance.new("Frame")
@@ -82,105 +165,12 @@ function GameSenseLib:MakeWindow(options)
 	PopupCatcher.Parent = PopupContainer
 
 	local function ClosePopups()
-		for _, v in pairs(PopupContainer:GetChildren()) do
-			if v ~= PopupCatcher then v:Destroy() end
-		end
+		for _, v in pairs(PopupContainer:GetChildren()) do if v ~= PopupCatcher then v:Destroy() end end
 		PopupCatcher.Visible = false
 	end
 	PopupCatcher.MouseButton1Click:Connect(ClosePopups)
 
-	-- Watermark
-	local Watermark = Instance.new("TextLabel")
-	Watermark.Size = UDim2.new(0, 250, 0, 20)
-	Watermark.Position = UDim2.new(1, -260, 0, 10)
-	Watermark.BackgroundColor3 = self.Theme.MenuBg
-	Watermark.BorderColor3 = self.Theme.Outline
-	Watermark.TextColor3 = self.Theme.Text
-	Watermark.Font = self.Theme.Font
-	Watermark.TextSize = 13
-	Watermark.TextXAlignment = Enum.TextXAlignment.Left
-	Watermark.Parent = ScreenGui
-	Watermark.Visible = false
-
-	local WMGradient = Instance.new("Frame")
-	WMGradient.Size = UDim2.new(1, 0, 0, 1)
-	WMGradient.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	WMGradient.BorderSizePixel = 0
-	WMGradient.Parent = Watermark
-	
-	local uiGrad = Instance.new("UIGradient")
-	uiGrad.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(59, 175, 222)),
-		ColorSequenceKeypoint.new(0.3, Color3.fromRGB(202, 105, 235)),
-		ColorSequenceKeypoint.new(0.6, Color3.fromRGB(235, 198, 105)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(168, 235, 105))
-	})
-	uiGrad.Parent = WMGradient
-
-	-- Keybinds List
-	local KeybindsFrame = Instance.new("Frame")
-	KeybindsFrame.Size = UDim2.new(0, 180, 0, 25)
-	KeybindsFrame.Position = UDim2.new(0, 10, 0.5, 0)
-	KeybindsFrame.BackgroundColor3 = self.Theme.MenuBg
-	KeybindsFrame.BorderColor3 = self.Theme.Outline
-	KeybindsFrame.Parent = ScreenGui
-	KeybindsFrame.Visible = false
-	MakeDraggable(KeybindsFrame, KeybindsFrame)
-	
-	WMGradient:Clone().Parent = KeybindsFrame
-	
-	local KBTitle = Instance.new("TextLabel")
-	KBTitle.Size = UDim2.new(1, 0, 1, 0)
-	KBTitle.BackgroundTransparency = 1
-	KBTitle.Text = " keybinds"
-	KBTitle.TextColor3 = self.Theme.Text
-	KBTitle.Font = self.Theme.Font
-	KBTitle.TextSize = 13
-	KBTitle.TextXAlignment = Enum.TextXAlignment.Left
-	KBTitle.Parent = KeybindsFrame
-
-	local KBContainer = Instance.new("Frame")
-	KBContainer.Size = UDim2.new(1, 0, 0, 0)
-	KBContainer.Position = UDim2.new(0, 0, 1, 2)
-	KBContainer.BackgroundColor3 = self.Theme.MenuBg
-	KBContainer.BorderColor3 = self.Theme.Outline
-	KBContainer.Parent = KeybindsFrame
-	
-	local KBLayout = Instance.new("UIListLayout")
-	KBLayout.Parent = KBContainer
-
-	RunService.RenderStepped:Connect(function(dt)
-		if Watermark.Visible then
-			Watermark.Text = string.format(" gamesense | %s | %d fps", LocalPlayer.Name, math.floor(1/dt))
-		end
-		
-		-- Manage Keybinds List State (Optimized)
-		if KeybindsFrame.Visible then
-			local activeCount = 0
-			for _, bind in ipairs(GameSenseLib.Binds) do
-				local isActive = false
-				if bind.Mode == "Always" then isActive = true
-				elseif bind.Mode == "Hold" then 
-					local keys = UserInputService:GetKeysPressed()
-					for _, k in pairs(keys) do if k.KeyCode == bind.Key then isActive = true break end end
-				elseif bind.Mode == "Toggle" then isActive = bind.Toggled end
-
-				if isActive and bind.Key ~= Enum.KeyCode.Unknown then
-					activeCount = activeCount + 1
-					bind.Label.Visible = true
-					bind.Label.Text = string.format(" %s [%s]", bind.Name, bind.Mode)
-				else
-					bind.Label.Visible = false
-				end
-			end
-			KBContainer.Size = UDim2.new(1, 0, 0, activeCount * 18)
-		end
-	end)
-
-	function self:SetWatermarkVisibility(state) Watermark.Visible = state end
-	function self:SetKeybindsVisibility(state) KeybindsFrame.Visible = state end
-
-	-- Main Window
+	-- Main UI Build
 	local Main = Instance.new("Frame")
 	Main.Size = UDim2.new(0, 600, 0, 450)
 	Main.Position = UDim2.new(0.5, -300, 0.5, -225)
@@ -190,21 +180,29 @@ function GameSenseLib:MakeWindow(options)
 	Main.Parent = ScreenGui
 	MakeDraggable(Main, Main)
 
+	local uiScale = Instance.new("UIScale")
+	uiScale.Parent = Main
+
 	local InnerMain = Instance.new("Frame")
 	InnerMain.Size = UDim2.new(1, -2, 1, -2)
 	InnerMain.Position = UDim2.new(0, 1, 0, 1)
 	InnerMain.BackgroundColor3 = self.Theme.MenuBg
 	InnerMain.BorderColor3 = self.Theme.Outline
-	InnerMain.ClipDescendants = true -- Fixes gradient bleed
+	InnerMain.ClipDescendants = true
 	InnerMain.Parent = Main
 
 	local TopBar = Instance.new("Frame")
 	TopBar.Size = UDim2.new(1, 0, 0, 2)
 	TopBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
 	TopBar.BorderSizePixel = 0
-	TopBar.ZIndex = 50 -- Stays above content
+	TopBar.ZIndex = 50
 	TopBar.Parent = InnerMain
-	uiGrad:Clone().Parent = TopBar
+	local uiGradClone = Instance.new("UIGradient")
+	uiGradClone.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(59, 175, 222)), ColorSequenceKeypoint.new(0.3, Color3.fromRGB(202, 105, 235)),
+		ColorSequenceKeypoint.new(0.6, Color3.fromRGB(235, 198, 105)), ColorSequenceKeypoint.new(1, Color3.fromRGB(168, 235, 105))
+	})
+	uiGradClone.Parent = TopBar
 
 	local Sidebar = Instance.new("Frame")
 	Sidebar.Size = UDim2.new(0, 60, 1, -2)
@@ -228,9 +226,9 @@ function GameSenseLib:MakeWindow(options)
 	ContentContainer.ClipDescendants = true
 	ContentContainer.Parent = InnerMain
 
-	UserInputService.InputBegan:Connect(function(input, gpe)
+	local keybindConnection = UserInputService.InputBegan:Connect(function(input, gpe)
 		if gpe then return end
-		if input.KeyCode == Enum.KeyCode.RightShift or input.KeyCode == Enum.KeyCode.Insert then
+		if input.KeyCode == GameSenseLib.MenuKey then
 			Main.Visible = not Main.Visible
 			ClosePopups()
 		end
@@ -298,7 +296,7 @@ function GameSenseLib:MakeWindow(options)
 
 		table.insert(WindowObj.Tabs, {Content = TabContent, Icon = IconImg})
 
-		local TabObj = {}
+		local TabObj = {TabBtn = TabBtn}
 		function TabObj:AddSection(secOptions)
 			local side = secOptions.Side or "Left"
 			local ParentCol = (side == "Right") and RightCol or LeftCol
@@ -307,6 +305,7 @@ function GameSenseLib:MakeWindow(options)
 			Groupbox.Size = UDim2.new(1, 0, 0, 20)
 			Groupbox.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 			Groupbox.BorderColor3 = GameSenseLib.Theme.Outline
+			Groupbox.ZIndex = 1
 			Groupbox.Parent = ParentCol
 
 			local TitleBg = Instance.new("Frame")
@@ -314,6 +313,7 @@ function GameSenseLib:MakeWindow(options)
 			TitleBg.Size = UDim2.new(0, 5, 0, 12)
 			TitleBg.BackgroundColor3 = GameSenseLib.Theme.Background
 			TitleBg.BorderSizePixel = 0
+			TitleBg.ZIndex = 2
 			TitleBg.Parent = Groupbox
 
 			local TitleLabel = Instance.new("TextLabel")
@@ -325,6 +325,7 @@ function GameSenseLib:MakeWindow(options)
 			TitleLabel.Font = GameSenseLib.Theme.Font
 			TitleLabel.TextSize = 13
 			TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+			TitleLabel.ZIndex = 3
 			TitleLabel.Parent = TitleBg
 			TitleBg.Size = UDim2.new(0, TitleLabel.TextBounds.X + 4, 0, 12)
 
@@ -332,6 +333,7 @@ function GameSenseLib:MakeWindow(options)
 			ItemContainer.Size = UDim2.new(1, -20, 1, -15)
 			ItemContainer.Position = UDim2.new(0, 10, 0, 10)
 			ItemContainer.BackgroundTransparency = 1
+			ItemContainer.ZIndex = 2
 			ItemContainer.Parent = Groupbox
 
 			local ItemLayout = Instance.new("UIListLayout")
@@ -383,6 +385,7 @@ function GameSenseLib:MakeWindow(options)
 				
 				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
 				Set(state)
+				return { Set = Set }
 			end
 
 			function SectionObj:AddSlider(opt)
@@ -446,6 +449,7 @@ function GameSenseLib:MakeWindow(options)
 				
 				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
 				Set(val)
+				return { Set = Set }
 			end
 
 			function SectionObj:AddDropdown(opt)
@@ -484,13 +488,21 @@ function GameSenseLib:MakeWindow(options)
 					if opt.Callback then pcall(opt.Callback, val) end
 				end
 
+				local function Refresh(newList, preserve)
+					opt.Options = newList
+					if not preserve then Set(newList[1]) end
+				end
+
 				MainBtn.MouseButton1Click:Connect(function()
 					ClosePopups()
 					PopupCatcher.Visible = true
 
+					local relX = (MainBtn.AbsolutePosition.X - Main.AbsolutePosition.X) / uiScale.Scale
+					local relY = (MainBtn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
+
 					local DropContainer = Instance.new("Frame")
-					DropContainer.Size = UDim2.new(0, MainBtn.AbsoluteSize.X, 0, #opt.Options * 18)
-					DropContainer.Position = UDim2.new(0, MainBtn.AbsolutePosition.X, 0, MainBtn.AbsolutePosition.Y + 20)
+					DropContainer.Size = UDim2.new(0, MainBtn.AbsoluteSize.X / uiScale.Scale, 0, #opt.Options * 18)
+					DropContainer.Position = UDim2.new(0, relX, 0, relY + 20)
 					DropContainer.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					DropContainer.BorderColor3 = GameSenseLib.Theme.Outline
 					DropContainer.ZIndex = 101
@@ -518,6 +530,7 @@ function GameSenseLib:MakeWindow(options)
 
 				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
 				Set(selected)
+				return { Set = Set, Refresh = Refresh }
 			end
 
 			function SectionObj:AddBind(opt)
@@ -550,19 +563,22 @@ function GameSenseLib:MakeWindow(options)
 				Btn.TextSize = 11
 				Btn.Parent = Frame
 				
-				-- Setup the visible label for the Keybinds List (Green Color)
 				local KBItem = Instance.new("TextLabel")
 				KBItem.Size = UDim2.new(1, -10, 0, 18)
 				KBItem.BackgroundTransparency = 1
-				KBItem.TextColor3 = GameSenseLib.Theme.Accent -- Green color for active binds!
 				KBItem.Font = GameSenseLib.Theme.Font
 				KBItem.TextSize = 12
 				KBItem.TextXAlignment = Enum.TextXAlignment.Left
 				KBItem.Visible = false
-				KBItem.Parent = KBContainer
-
+				
 				local bindData = {Name = opt.Name, Key = key, Mode = mode, Toggled = false, Label = KBItem}
 				table.insert(GameSenseLib.Binds, bindData)
+				
+				local function Set(newKey)
+					key = newKey
+					bindData.Key = newKey
+					Btn.Text = "[" .. (key == Enum.KeyCode.Unknown and "None" or key.Name) .. "]"
+				end
 
 				local listening = false
 				
@@ -570,10 +586,13 @@ function GameSenseLib:MakeWindow(options)
 					ClosePopups()
 					PopupCatcher.Visible = true
 
+					local relX = (Btn.AbsolutePosition.X - Main.AbsolutePosition.X) / uiScale.Scale
+					local relY = (Btn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
+
 					local Modes = {"Always", "Hold", "Toggle"}
 					local DropContainer = Instance.new("Frame")
 					DropContainer.Size = UDim2.new(0, 60, 0, #Modes * 18)
-					DropContainer.Position = UDim2.new(0, Btn.AbsolutePosition.X, 0, Btn.AbsolutePosition.Y + 18)
+					DropContainer.Position = UDim2.new(0, relX, 0, relY + 18)
 					DropContainer.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					DropContainer.BorderColor3 = GameSenseLib.Theme.Outline
 					DropContainer.ZIndex = 101
@@ -593,25 +612,23 @@ function GameSenseLib:MakeWindow(options)
 						MBtn.TextXAlignment = Enum.TextXAlignment.Left
 						MBtn.ZIndex = 102
 						MBtn.Parent = DropContainer
-						MBtn.MouseButton1Click:Connect(function()
-							bindData.Mode = m
-							ClosePopups()
-						end)
+						MBtn.MouseButton1Click:Connect(function() bindData.Mode = m ClosePopups() end)
 					end
 				end)
 
 				Btn.MouseButton1Click:Connect(function() listening = true Btn.Text = "[...]" end)
 				UserInputService.InputBegan:Connect(function(input, gpe)
 					if listening and input.UserInputType == Enum.UserInputType.Keyboard then
-						key = input.KeyCode
-						bindData.Key = key
-						Btn.Text = "[" .. key.Name .. "]"
+						Set(input.KeyCode)
 						listening = false
+						if opt.OnKeyChange then pcall(opt.OnKeyChange, key) end
 					elseif not listening and input.KeyCode == key and not gpe then
 						if bindData.Mode == "Toggle" then bindData.Toggled = not bindData.Toggled end
 						if opt.Callback then pcall(opt.Callback) end
 					end
 				end)
+
+				return { Set = Set }
 			end
 			
 			function SectionObj:AddColorpicker(opt)
@@ -639,20 +656,24 @@ function GameSenseLib:MakeWindow(options)
 				Btn.Text = ""
 				Btn.Parent = Frame
 				
-				local function SetColor()
-					local clr = Color3.fromHSV(h, s, v)
-					Btn.BackgroundColor3 = clr
+				local function Set(clr)
+					if type(clr) == "table" then h,s,v = clr[1],clr[2],clr[3] else h,s,v = Color3.toHSV(clr) end
+					local c = Color3.fromHSV(h, s, v)
+					Btn.BackgroundColor3 = c
 					if opt.Flag then GameSenseLib.Flags[opt.Flag] = {h, s, v} end
-					if opt.Callback then pcall(opt.Callback, clr) end
+					if opt.Callback then pcall(opt.Callback, c) end
 				end
 
 				Btn.MouseButton1Click:Connect(function()
 					ClosePopups()
 					PopupCatcher.Visible = true
 					
+					local relX = (Btn.AbsolutePosition.X - Main.AbsolutePosition.X) / uiScale.Scale
+					local relY = (Btn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
+
 					local Picker = Instance.new("Frame")
 					Picker.Size = UDim2.new(0, 150, 0, 150)
-					Picker.Position = UDim2.new(0, Btn.AbsolutePosition.X - 125, 0, Btn.AbsolutePosition.Y + 15)
+					Picker.Position = UDim2.new(0, relX - 125, 0, relY + 15)
 					Picker.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					Picker.BorderColor3 = GameSenseLib.Theme.Outline
 					Picker.ZIndex = 101
@@ -698,12 +719,12 @@ function GameSenseLib:MakeWindow(options)
 					local function UpdateSV(input)
 						s = math.clamp((input.Position.X - SVMap.AbsolutePosition.X) / SVMap.AbsoluteSize.X, 0, 1)
 						v = 1 - math.clamp((input.Position.Y - SVMap.AbsolutePosition.Y) / SVMap.AbsoluteSize.Y, 0, 1)
-						SetColor()
+						Set({h,s,v})
 					end
 					local function UpdateH(input)
 						h = math.clamp((input.Position.X - HueMap.AbsolutePosition.X) / HueMap.AbsoluteSize.X, 0, 1)
 						SVMap.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
-						SetColor()
+						Set({h,s,v})
 					end
 
 					SVMap.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then draggingSV = true UpdateSV(i) end end)
@@ -712,15 +733,9 @@ function GameSenseLib:MakeWindow(options)
 					UserInputService.InputChanged:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseMovement then if draggingSV then UpdateSV(i) elseif draggingH then UpdateH(i) end end end)
 				end)
 
-				if opt.Flag then 
-					GameSenseLib.Elements[opt.Flag] = {Set = function(arr)
-						if type(arr) == "table" and #arr >= 3 then
-							h, s, v = arr[1], arr[2], arr[3]
-							SetColor()
-						end
-					end}
-				end
-				SetColor()
+				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
+				Set({h,s,v})
+				return { Set = Set }
 			end
 
 			function SectionObj:AddTextbox(opt)
@@ -766,6 +781,63 @@ function GameSenseLib:MakeWindow(options)
 				
 				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
 				Set(val)
+				return { Set = Set }
+			end
+
+			function SectionObj:AddButton(opt)
+				local Btn = Instance.new("TextButton")
+				Btn.Size = UDim2.new(1, 0, 0, 20)
+				Btn.BackgroundColor3 = GameSenseLib.Theme.DarkOutline
+				Btn.BorderColor3 = GameSenseLib.Theme.Outline
+				Btn.Text = opt.Name or "Button"
+				Btn.TextColor3 = GameSenseLib.Theme.Text
+				Btn.Font = GameSenseLib.Theme.Font
+				Btn.TextSize = 12
+				Btn.Parent = ItemContainer
+				Btn.MouseButton1Click:Connect(function() if opt.Callback then pcall(opt.Callback) end end)
+			end
+
+			function SectionObj:AddLabel(text)
+				local Label = Instance.new("TextLabel")
+				Label.Size = UDim2.new(1, 0, 0, 15)
+				Label.BackgroundTransparency = 1
+				Label.Text = text
+				Label.TextColor3 = GameSenseLib.Theme.DarkText
+				Label.Font = GameSenseLib.Theme.Font
+				Label.TextSize = 12
+				Label.TextXAlignment = Enum.TextXAlignment.Left
+				Label.Parent = ItemContainer
+				return { Set = function(val) Label.Text = val end }
+			end
+			
+			function SectionObj:AddParagraph(title, content)
+				local Frame = Instance.new("Frame")
+				Frame.Size = UDim2.new(1, 0, 0, 30)
+				Frame.BackgroundTransparency = 1
+				Frame.Parent = ItemContainer
+				
+				local T = Instance.new("TextLabel")
+				T.Size = UDim2.new(1, 0, 0, 15)
+				T.BackgroundTransparency = 1
+				T.Text = title
+				T.TextColor3 = GameSenseLib.Theme.Text
+				T.Font = GameSenseLib.Theme.Font
+				T.TextSize = 12
+				T.TextXAlignment = Enum.TextXAlignment.Left
+				T.Parent = Frame
+				
+				local C = Instance.new("TextLabel")
+				C.Size = UDim2.new(1, 0, 0, 15)
+				C.Position = UDim2.new(0, 0, 0, 15)
+				C.BackgroundTransparency = 1
+				C.Text = content
+				C.TextColor3 = GameSenseLib.Theme.DarkText
+				C.Font = GameSenseLib.Theme.Font
+				C.TextSize = 12
+				C.TextXAlignment = Enum.TextXAlignment.Left
+				C.Parent = Frame
+
+				return { Set = function(newTitle, newContent) T.Text = newTitle; C.Text = newContent end }
 			end
 
 			return SectionObj
@@ -773,43 +845,70 @@ function GameSenseLib:MakeWindow(options)
 		return TabObj
 	end
 
-	-- ROBUST CONFIG SYSTEM
+	-- SETTINGS TAB (WATERMARK, HOLDS KEYBINDS ETC.)
+	local BuiltInSettings = WindowObj:MakeTab({ Name = "Settings", Icon = "rbxassetid://7734053495" })
+	BuiltInSettings.TabBtn.LayoutOrder = 99999
+
+	local UISec = BuiltInSettings:AddSection({ Name = "UI Settings", Side = "Left" })
+	UISec:AddBind({
+		Name = "Menu Keybind",
+		Default = Enum.KeyCode.Insert,
+		OnKeyChange = function(key) GameSenseLib.MenuKey = key end
+	})
+	UISec:AddSlider({ Name = "UI Scale", Min = 50, Max = 150, Default = 100, ValueName = "%", Callback = function(val) uiScale.Scale = val / 100 end })
+
+	local TrackerSec = BuiltInSettings:AddSection({ Name = "Trackers", Side = "Right" })
+	TrackerSec:AddToggle({ Name = "Watermark", Default = true, Callback = function(v) GameSenseLib:SetWatermarkVisibility(v) end })
+	
+	local kbListContainer = Instance.new("Frame")
+	kbListContainer.Parent = TrackerSec
+	
+	TrackerSec:AddToggle({ 
+		Name = "Keybinds List", 
+		Default = true, 
+		Callback = function(v) 
+			GameSenseLib:SetKeybindsVisibility(v) 
+			if v then 
+				for _, bind in ipairs(GameSenseLib.Binds) do bind.Label.Parent = KBContainer end
+			else
+				for _, bind in ipairs(GameSenseLib.Binds) do bind.Label.Parent = nil end
+			end
+		end 
+	})
+
+	-- GAME SPECIFIC CONFIG SYSTEM
 	function GameSenseLib:SaveConfig(filename)
 		if not isfolder(self.ConfigFolder) then makefolder(self.ConfigFolder) end
-		
-		-- Sanitize the flags table so it doesn't break JSONEncode
 		local saveTable = {}
 		for flagName, flagValue in pairs(self.Flags) do
 			if type(flagValue) == "boolean" or type(flagValue) == "number" or type(flagValue) == "string" or type(flagValue) == "table" then
 				saveTable[flagName] = flagValue
 			end
 		end
-
 		local success, encoded = pcall(function() return HttpService:JSONEncode(saveTable) end)
-		if success then
-			writefile(self.ConfigFolder .. "/" .. filename .. ".json", encoded)
-			print("[GameSense] Saved config:", filename)
-		else
-			warn("[GameSense] Failed to encode configuration.")
+		if success then 
+			writefile(self.ConfigFolder .. "/" .. tostring(game.PlaceId) .. "_" .. filename .. ".json", encoded)
+			GameSenseLib:MakeNotification({Name = "Config Saved", Content = "Saved " .. filename, Time = 3})
 		end
 	end
 
 	function GameSenseLib:LoadConfig(filename)
-		local path = self.ConfigFolder .. "/" .. filename .. ".json"
+		local path = self.ConfigFolder .. "/" .. tostring(game.PlaceId) .. "_" .. filename .. ".json"
 		if isfile(path) then
 			local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
 			if success then
 				for flag, val in pairs(decoded) do
-					if self.Elements[flag] then 
-						pcall(function() self.Elements[flag].Set(val) end)
-					end
+					if self.Elements[flag] then pcall(function() self.Elements[flag].Set(val) end) end
 				end
-				print("[GameSense] Loaded config:", filename)
+				GameSenseLib:MakeNotification({Name = "Config Loaded", Content = "Loaded " .. filename, Time = 3})
 			end
 		end
 	end
 
-	function GameSenseLib:Destroy() if self.Gui then self.Gui:Destroy() end end
+	function GameSenseLib:Destroy() 
+		if self.Gui then self.Gui:Destroy() end 
+		if keybindConnection then keybindConnection:Disconnect() end
+	end
 	function GameSenseLib:Init() end
 
 	return WindowObj
