@@ -1,5 +1,5 @@
--- GameSense Lib V6.1 - Fixed
--- Fixed ClipsDescendants Typo, Better Anti-Duplication
+-- GameSense Lib V7 - Final Polish
+-- Fixed Text Slicing, Sorted Tabs, Crash-Proof Anti-Dupe.
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -7,16 +7,23 @@ local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
-local LocalPlayer = Players.LocalPlayer
 
--- Extremely Safe Anti-Duplicate System
+-- 100% Crash-Proof Anti-Duplicate System
 pcall(function()
-	for _, v in ipairs(CoreGui:GetChildren()) do
+	if getgenv().GameSense_UI_Instance then
+		getgenv().GameSense_UI_Instance:Destroy()
+		getgenv().GameSense_UI_Instance = nil
+	end
+	for _, v in pairs(CoreGui:GetChildren()) do
 		if v.Name == "GameSenseUI" then v:Destroy() end
 	end
-	if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") then
-		for _, v in ipairs(LocalPlayer.PlayerGui:GetChildren()) do
-			if v.Name == "GameSenseUI" then v:Destroy() end
+	local lp = Players.LocalPlayer
+	if lp then
+		local pg = lp:FindFirstChild("PlayerGui")
+		if pg then
+			for _, v in pairs(pg:GetChildren()) do
+				if v.Name == "GameSenseUI" then v:Destroy() end
+			end
 		end
 	end
 end)
@@ -38,6 +45,8 @@ local GameSenseLib = {
 		Font = Enum.Font.Code
 	}
 }
+
+local LocalPlayer = Players.LocalPlayer
 
 local makefolder = makefolder or function() end
 local isfolder = isfolder or function() return false end
@@ -73,9 +82,10 @@ function GameSenseLib:MakeWindow(options)
 	ScreenGui.ResetOnSpawn = false
 	pcall(function() ScreenGui.Parent = CoreGui end)
 	if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+	
 	self.Gui = ScreenGui
+	getgenv().GameSense_UI_Instance = ScreenGui 
 
-	-- Notification Container
 	local NotifContainer = Instance.new("Frame")
 	NotifContainer.Size = UDim2.new(0, 250, 1, -20)
 	NotifContainer.Position = UDim2.new(1, -260, 0, 10)
@@ -89,7 +99,6 @@ function GameSenseLib:MakeWindow(options)
 	NotifLayout.Padding = UDim.new(0, 10)
 	NotifLayout.Parent = NotifContainer
 
-	-- Public Notification Function
 	function GameSenseLib:MakeNotification(opt)
 		local title = opt.Name or "Notification"
 		local content = opt.Content or ""
@@ -153,7 +162,6 @@ function GameSenseLib:MakeWindow(options)
 		end)
 	end
 
-	-- Global Popup Layer
 	local PopupContainer = Instance.new("Frame")
 	PopupContainer.Size = UDim2.new(1, 0, 1, 0)
 	PopupContainer.BackgroundTransparency = 1
@@ -174,7 +182,6 @@ function GameSenseLib:MakeWindow(options)
 	end
 	PopupCatcher.MouseButton1Click:Connect(ClosePopups)
 
-	-- Main UI Build
 	local Main = Instance.new("Frame")
 	Main.Size = UDim2.new(0, 600, 0, 450)
 	Main.Position = UDim2.new(0.5, -300, 0.5, -225)
@@ -192,7 +199,7 @@ function GameSenseLib:MakeWindow(options)
 	InnerMain.Position = UDim2.new(0, 1, 0, 1)
 	InnerMain.BackgroundColor3 = self.Theme.MenuBg
 	InnerMain.BorderColor3 = self.Theme.Outline
-	InnerMain.ClipsDescendants = true -- FIXED TYPO HERE
+	InnerMain.ClipsDescendants = true 
 	InnerMain.Parent = Main
 
 	local TopBar = Instance.new("Frame")
@@ -217,7 +224,9 @@ function GameSenseLib:MakeWindow(options)
 
 	local SidebarLayout = Instance.new("UIListLayout")
 	SidebarLayout.Padding = UDim.new(0, 5)
+	SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder -- FIXED: Sorting by LayoutOrder to put Settings on bottom
 	SidebarLayout.Parent = Sidebar
+	
 	local SidebarPadding = Instance.new("UIPadding")
 	SidebarPadding.PaddingTop = UDim.new(0, 15) 
 	SidebarPadding.Parent = Sidebar
@@ -227,7 +236,7 @@ function GameSenseLib:MakeWindow(options)
 	ContentContainer.Position = UDim2.new(0, 61, 0, 2)
 	ContentContainer.BackgroundColor3 = self.Theme.Background
 	ContentContainer.BorderSizePixel = 0
-	ContentContainer.ClipsDescendants = true -- FIXED TYPO HERE
+	ContentContainer.ClipsDescendants = true 
 	ContentContainer.Parent = InnerMain
 
 	local keybindConnection = UserInputService.InputBegan:Connect(function(input, gpe)
@@ -238,12 +247,14 @@ function GameSenseLib:MakeWindow(options)
 		end
 	end)
 
-	local WindowObj = {Tabs = {}}
+	local WindowObj = {Tabs = {}, TabCount = 0}
 
 	function WindowObj:MakeTab(tabOptions)
+		WindowObj.TabCount = WindowObj.TabCount + 1
 		local TabBtn = Instance.new("TextButton")
 		TabBtn.Size = UDim2.new(1, 0, 0, 50)
 		TabBtn.BackgroundTransparency = 1
+		TabBtn.LayoutOrder = WindowObj.TabCount -- Standard tabs use normal numbers
 		TabBtn.Text = ""
 		TabBtn.Parent = Sidebar
 
@@ -262,26 +273,36 @@ function GameSenseLib:MakeWindow(options)
 		TabContent.Parent = ContentContainer
 
 		local LeftCol = Instance.new("ScrollingFrame")
-		LeftCol.Size = UDim2.new(0.5, -15, 1, -20)
-		LeftCol.Position = UDim2.new(0, 10, 0, 10)
+		LeftCol.Size = UDim2.new(0.5, -15, 1, 0)
+		LeftCol.Position = UDim2.new(0, 10, 0, 0)
 		LeftCol.BackgroundTransparency = 1
 		LeftCol.ScrollBarThickness = 0
-		LeftCol.ClipsDescendants = true -- FIXED TYPO HERE
+		LeftCol.ClipsDescendants = true 
 		LeftCol.Parent = TabContent
 		local LeftLayout = Instance.new("UIListLayout")
 		LeftLayout.Padding = UDim.new(0, 15)
 		LeftLayout.Parent = LeftCol
+		-- FIXED: Padding prevents top text from being sliced in half!
+		local LeftPad = Instance.new("UIPadding")
+		LeftPad.PaddingTop = UDim.new(0, 12)
+		LeftPad.PaddingBottom = UDim.new(0, 12)
+		LeftPad.Parent = LeftCol
 
 		local RightCol = Instance.new("ScrollingFrame")
-		RightCol.Size = UDim2.new(0.5, -15, 1, -20)
-		RightCol.Position = UDim2.new(0.5, 5, 0, 10)
+		RightCol.Size = UDim2.new(0.5, -15, 1, 0)
+		RightCol.Position = UDim2.new(0.5, 5, 0, 0)
 		RightCol.BackgroundTransparency = 1
 		RightCol.ScrollBarThickness = 0
-		RightCol.ClipsDescendants = true -- FIXED TYPO HERE
+		RightCol.ClipsDescendants = true 
 		RightCol.Parent = TabContent
 		local RightLayout = Instance.new("UIListLayout")
 		RightLayout.Padding = UDim.new(0, 15)
 		RightLayout.Parent = RightCol
+		-- FIXED: Padding prevents top text from being sliced in half!
+		local RightPad = Instance.new("UIPadding")
+		RightPad.PaddingTop = UDim.new(0, 12)
+		RightPad.PaddingBottom = UDim.new(0, 12)
+		RightPad.Parent = RightCol
 
 		TabBtn.MouseButton1Click:Connect(function()
 			for _, tab in pairs(WindowObj.Tabs) do
@@ -347,7 +368,7 @@ function GameSenseLib:MakeWindow(options)
 			local function UpdateSize()
 				Groupbox.Size = UDim2.new(1, 0, 0, ItemLayout.AbsoluteContentSize.Y + 20)
 				local targetLayout = side == "Right" and RightLayout or LeftLayout
-				ParentCol.CanvasSize = UDim2.new(0, 0, 0, targetLayout.AbsoluteContentSize.Y + 20)
+				ParentCol.CanvasSize = UDim2.new(0, 0, 0, targetLayout.AbsoluteContentSize.Y + 25)
 			end
 			ItemLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateSize)
 
@@ -493,8 +514,8 @@ function GameSenseLib:MakeWindow(options)
 				end
 
 				local function Refresh(newList, preserve)
-					opt.Options = newList
-					if not preserve then Set(newList[1]) end
+					opt.Options = newList or {}
+					if not preserve and #opt.Options > 0 then Set(opt.Options[1]) end
 				end
 
 				MainBtn.MouseButton1Click:Connect(function()
@@ -505,7 +526,7 @@ function GameSenseLib:MakeWindow(options)
 					local relY = (MainBtn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
 
 					local DropContainer = Instance.new("Frame")
-					DropContainer.Size = UDim2.new(0, MainBtn.AbsoluteSize.X / uiScale.Scale, 0, #opt.Options * 18)
+					DropContainer.Size = UDim2.new(0, MainBtn.AbsoluteSize.X / uiScale.Scale, 0, #(opt.Options or {}) * 18)
 					DropContainer.Position = UDim2.new(0, relX, 0, relY + 20)
 					DropContainer.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					DropContainer.BorderColor3 = GameSenseLib.Theme.Outline
@@ -515,7 +536,7 @@ function GameSenseLib:MakeWindow(options)
 					local DropLayout = Instance.new("UIListLayout")
 					DropLayout.Parent = DropContainer
 
-					for _, item in ipairs(opt.Options) do
+					for _, item in ipairs(opt.Options or {}) do
 						local Btn = Instance.new("TextButton")
 						Btn.Size = UDim2.new(1, 0, 0, 18)
 						Btn.BackgroundColor3 = GameSenseLib.Theme.MenuBg
@@ -567,15 +588,7 @@ function GameSenseLib:MakeWindow(options)
 				Btn.TextSize = 11
 				Btn.Parent = Frame
 				
-				local KBItem = Instance.new("TextLabel")
-				KBItem.Size = UDim2.new(1, -10, 0, 18)
-				KBItem.BackgroundTransparency = 1
-				KBItem.Font = GameSenseLib.Theme.Font
-				KBItem.TextSize = 12
-				KBItem.TextXAlignment = Enum.TextXAlignment.Left
-				KBItem.Visible = false
-				
-				local bindData = {Name = opt.Name, Key = key, Mode = mode, Toggled = false, Label = KBItem}
+				local bindData = {Name = opt.Name, Key = key, Mode = mode, Toggled = false}
 				table.insert(GameSenseLib.Binds, bindData)
 				
 				local function Set(newKey)
@@ -849,31 +862,24 @@ function GameSenseLib:MakeWindow(options)
 		return TabObj
 	end
 
-	-- AUTOMATIC UNREMOVABLE SETTINGS TAB
+	-- BUILT-IN SETTINGS TAB (SORTED TO VERY BOTTOM)
 	local BuiltInSettings = WindowObj:MakeTab({ Name = "Settings", Icon = "rbxassetid://7734053495" })
 	BuiltInSettings.TabBtn.LayoutOrder = 99999
 
 	local UISec = BuiltInSettings:AddSection({ Name = "UI Settings", Side = "Left" })
-	UISec:AddBind({
-		Name = "Menu Keybind",
-		Default = Enum.KeyCode.Insert,
-		OnKeyChange = function(key) GameSenseLib.MenuKey = key end
-	})
+	UISec:AddBind({ Name = "Menu Keybind", Default = Enum.KeyCode.Insert, OnKeyChange = function(key) GameSenseLib.MenuKey = key end })
 	UISec:AddSlider({ Name = "UI Scale", Min = 50, Max = 150, Default = 100, ValueName = "%", Callback = function(val) uiScale.Scale = val / 100 end })
 
-	local TrackerSec = BuiltInSettings:AddSection({ Name = "Trackers", Side = "Right" })
-	TrackerSec:AddToggle({ Name = "Watermark", Default = true, Callback = function(v) GameSenseLib:SetWatermarkVisibility(v) end })
+	local TrackerSec = BuiltInSettings:AddSection({ Name = "HUD Tracking", Side = "Right" })
+	TrackerSec:AddToggle({ Name = "Watermark", Default = true, Callback = function(v) Watermark.Visible = v end })
 	
+	-- New Dynamic Keybind List Registration
+	local KBContainer = KeybindsFrame:FindFirstChild("Frame")
 	TrackerSec:AddToggle({ 
 		Name = "Keybinds List", 
 		Default = true, 
 		Callback = function(v) 
-			GameSenseLib:SetKeybindsVisibility(v) 
-			if v then 
-				for _, bind in ipairs(GameSenseLib.Binds) do bind.Label.Parent = KBContainer end
-			else
-				for _, bind in ipairs(GameSenseLib.Binds) do bind.Label.Parent = nil end
-			end
+			KeybindsFrame.Visible = v
 		end 
 	})
 
