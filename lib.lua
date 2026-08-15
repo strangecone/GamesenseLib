@@ -1,5 +1,5 @@
--- GameSense Lib V9 - The Ultimate Version
--- Fixed Popup Coordinates, Added Rainbow Color Pickers, Screen Inset Fixes.
+-- GameSense Lib V10 (Final Orion API Parity Fix)
+-- Fixes Tab Injection, Auto-Saving, Flag .Value formatting, and Memory Leaks.
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -9,11 +9,11 @@ local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
+-- 100% Crash-Proof Anti-Duplicate System (Clears old GUIs and old Keybind Connections)
 pcall(function()
-	if getgenv().GameSense_UI_Instance then
-		getgenv().GameSense_UI_Instance:Destroy()
-		getgenv().GameSense_UI_Instance = nil
-	end
+	if getgenv().GameSense_UI_Instance then getgenv().GameSense_UI_Instance:Destroy() end
+	if getgenv().GameSense_Menu_Connection then getgenv().GameSense_Menu_Connection:Disconnect() end
+	
 	for _, v in pairs(CoreGui:GetChildren()) do if v.Name == "GameSenseUI" then v:Destroy() end end
 	if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") then
 		for _, v in pairs(LocalPlayer.PlayerGui:GetChildren()) do if v.Name == "GameSenseUI" then v:Destroy() end end
@@ -26,6 +26,7 @@ local GameSenseLib = {
 	Binds = {},
 	MenuKey = Enum.KeyCode.Insert,
 	ConfigFolder = "GameSense",
+	AutoSaveEnabled = false,
 	Theme = {
 		Background = Color3.fromRGB(23, 23, 23),
 		MenuBg = Color3.fromRGB(17, 17, 17),
@@ -63,22 +64,18 @@ local function MakeDraggable(topbarobject, object)
 	end)
 end
 
-function GameSenseLib:SetWatermarkVisibility(state)
-	if self.Watermark then self.Watermark.Visible = state end
-end
-
-function GameSenseLib:SetKeybindsVisibility(state)
-	if self.KeybindsFrame then self.KeybindsFrame.Visible = state end
-end
+function GameSenseLib:SetWatermarkVisibility(state) if self.Watermark then self.Watermark.Visible = state end end
+function GameSenseLib:SetKeybindsVisibility(state) if self.KeybindsFrame then self.KeybindsFrame.Visible = state end end
 
 function GameSenseLib:MakeWindow(options)
 	options = options or {}
 	self.ConfigFolder = options.ConfigFolder or "GameSense"
+	self.AutoSaveEnabled = options.SaveConfig or false
 	
 	local ScreenGui = Instance.new("ScreenGui")
 	ScreenGui.Name = "GameSenseUI"
 	ScreenGui.ResetOnSpawn = false
-	ScreenGui.IgnoreGuiInset = true -- FIXES POPUP POSITIONING OFFSETS!
+	ScreenGui.IgnoreGuiInset = true 
 	pcall(function() ScreenGui.Parent = CoreGui end)
 	if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 	
@@ -91,6 +88,7 @@ function GameSenseLib:MakeWindow(options)
 	NotifContainer.BackgroundTransparency = 1
 	NotifContainer.ZIndex = 1000
 	NotifContainer.Parent = ScreenGui
+	self.NotifContainer = NotifContainer
 	
 	local NotifLayout = Instance.new("UIListLayout")
 	NotifLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -109,7 +107,7 @@ function GameSenseLib:MakeWindow(options)
 		NotifFrame.BackgroundColor3 = self.Theme.MenuBg
 		NotifFrame.BorderColor3 = self.Theme.Outline
 		NotifFrame.ZIndex = 1000
-		NotifFrame.Parent = NotifContainer
+		NotifFrame.Parent = self.NotifContainer
 
 		local NGrad = Instance.new("Frame")
 		NGrad.Size = UDim2.new(1, 0, 0, 1)
@@ -313,7 +311,7 @@ function GameSenseLib:MakeWindow(options)
 	ContentContainer.ClipsDescendants = true 
 	ContentContainer.Parent = InnerMain
 
-	local keybindConnection = UserInputService.InputBegan:Connect(function(input, gpe)
+	getgenv().GameSense_Menu_Connection = UserInputService.InputBegan:Connect(function(input, gpe)
 		if gpe then return end
 		if input.KeyCode == GameSenseLib.MenuKey then
 			Main.Visible = not Main.Visible
@@ -394,6 +392,24 @@ function GameSenseLib:MakeWindow(options)
 		table.insert(WindowObj.Tabs, {Content = TabContent, Icon = IconImg})
 
 		local TabObj = {TabBtn = TabBtn}
+		
+		-- FIX: Orion compatibility for injecting directly into tabs
+		local DefaultSection = nil
+		local function GetDefaultSection()
+			if not DefaultSection then DefaultSection = TabObj:AddSection({ Name = "General", Side = "Left" }) end
+			return DefaultSection
+		end
+		
+		function TabObj:AddToggle(opt) return GetDefaultSection():AddToggle(opt) end
+		function TabObj:AddSlider(opt) return GetDefaultSection():AddSlider(opt) end
+		function TabObj:AddDropdown(opt) return GetDefaultSection():AddDropdown(opt) end
+		function TabObj:AddBind(opt) return GetDefaultSection():AddBind(opt) end
+		function TabObj:AddColorpicker(opt) return GetDefaultSection():AddColorpicker(opt) end
+		function TabObj:AddTextbox(opt) return GetDefaultSection():AddTextbox(opt) end
+		function TabObj:AddButton(opt) return GetDefaultSection():AddButton(opt) end
+		function TabObj:AddLabel(text) return GetDefaultSection():AddLabel(text) end
+		function TabObj:AddParagraph(t, c) return GetDefaultSection():AddParagraph(t, c) end
+
 		function TabObj:AddSection(secOptions)
 			local side = secOptions.Side or "Left"
 			local ParentCol = (side == "Right") and RightCol or LeftCol
@@ -475,8 +491,15 @@ function GameSenseLib:MakeWindow(options)
 				local function Set(val)
 					state = val
 					Box.BackgroundColor3 = state and GameSenseLib.Theme.Accent or GameSenseLib.Theme.DarkOutline
-					if opt.Flag then GameSenseLib.Flags[opt.Flag] = state end
+					
+					-- FIX: Orion Flags are formatted as Flags[Name].Value
+					if opt.Flag then 
+						if not GameSenseLib.Flags[opt.Flag] then GameSenseLib.Flags[opt.Flag] = {} end
+						GameSenseLib.Flags[opt.Flag].Value = state 
+					end
+					
 					if opt.Callback then pcall(opt.Callback, state) end
+					if opt.Save and GameSenseLib.AutoSaveEnabled then GameSenseLib:SaveConfig("auto_config") end
 				end
 				Frame.MouseButton1Click:Connect(function() Set(not state) end)
 				
@@ -530,8 +553,14 @@ function GameSenseLib:MakeWindow(options)
 					val = math.clamp(newVal, opt.Min, opt.Max)
 					Fill.Size = UDim2.new((val - opt.Min) / (opt.Max - opt.Min), 0, 1, 0)
 					ValLabel.Text = tostring(val) .. (opt.ValueName or "")
-					if opt.Flag then GameSenseLib.Flags[opt.Flag] = val end
+					
+					if opt.Flag then 
+						if not GameSenseLib.Flags[opt.Flag] then GameSenseLib.Flags[opt.Flag] = {} end
+						GameSenseLib.Flags[opt.Flag].Value = val 
+					end
+					
 					if opt.Callback then pcall(opt.Callback, val) end
+					if opt.Save and GameSenseLib.AutoSaveEnabled then GameSenseLib:SaveConfig("auto_config") end
 				end
 
 				local dragging = false
@@ -581,8 +610,14 @@ function GameSenseLib:MakeWindow(options)
 				local function Set(val)
 					selected = val
 					MainBtn.Text = " " .. tostring(val)
-					if opt.Flag then GameSenseLib.Flags[opt.Flag] = val end
+					
+					if opt.Flag then 
+						if not GameSenseLib.Flags[opt.Flag] then GameSenseLib.Flags[opt.Flag] = {} end
+						GameSenseLib.Flags[opt.Flag].Value = val 
+					end
+					
 					if opt.Callback then pcall(opt.Callback, val) end
+					if opt.Save and GameSenseLib.AutoSaveEnabled then GameSenseLib:SaveConfig("auto_config") end
 				end
 
 				local function Refresh(newList, preserve)
@@ -594,10 +629,12 @@ function GameSenseLib:MakeWindow(options)
 					ClosePopups()
 					PopupCatcher.Visible = true
 
-					-- FIXED POPUP MATH: Absolute Position avoids scale bugs!
+					local relX = (MainBtn.AbsolutePosition.X - Main.AbsolutePosition.X) / uiScale.Scale
+					local relY = (MainBtn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
+
 					local DropContainer = Instance.new("Frame")
-					DropContainer.Size = UDim2.new(0, MainBtn.AbsoluteSize.X, 0, #(opt.Options or {}) * 18)
-					DropContainer.Position = UDim2.new(0, MainBtn.AbsolutePosition.X, 0, MainBtn.AbsolutePosition.Y + 20)
+					DropContainer.Size = UDim2.new(0, MainBtn.AbsoluteSize.X / uiScale.Scale, 0, #(opt.Options or {}) * 18)
+					DropContainer.Position = UDim2.new(0, relX, 0, relY + 20)
 					DropContainer.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					DropContainer.BorderColor3 = GameSenseLib.Theme.Outline
 					DropContainer.ZIndex = 101
@@ -618,6 +655,7 @@ function GameSenseLib:MakeWindow(options)
 						Btn.TextXAlignment = Enum.TextXAlignment.Left
 						Btn.ZIndex = 102
 						Btn.Parent = DropContainer
+
 						Btn.MouseButton1Click:Connect(function() Set(item) ClosePopups() end)
 					end
 				end)
@@ -664,7 +702,6 @@ function GameSenseLib:MakeWindow(options)
 				KBItem.TextSize = 12
 				KBItem.TextXAlignment = Enum.TextXAlignment.Left
 				KBItem.Visible = false
-				KBItem.Parent = KBContainer
 				
 				local bindData = {Name = opt.Name, Key = key, Mode = mode, Toggled = false, Label = KBItem}
 				table.insert(GameSenseLib.Binds, bindData)
@@ -673,6 +710,12 @@ function GameSenseLib:MakeWindow(options)
 					key = newKey
 					bindData.Key = newKey
 					Btn.Text = "[" .. (key == Enum.KeyCode.Unknown and "None" or key.Name) .. "]"
+					
+					if opt.Flag then 
+						if not GameSenseLib.Flags[opt.Flag] then GameSenseLib.Flags[opt.Flag] = {} end
+						GameSenseLib.Flags[opt.Flag].Value = newKey 
+					end
+					if opt.Save and GameSenseLib.AutoSaveEnabled then GameSenseLib:SaveConfig("auto_config") end
 				end
 
 				local listening = false
@@ -681,11 +724,13 @@ function GameSenseLib:MakeWindow(options)
 					ClosePopups()
 					PopupCatcher.Visible = true
 
+					local relX = (Btn.AbsolutePosition.X - Main.AbsolutePosition.X) / uiScale.Scale
+					local relY = (Btn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
+
 					local Modes = {"Always", "Hold", "Toggle"}
 					local DropContainer = Instance.new("Frame")
 					DropContainer.Size = UDim2.new(0, 60, 0, #Modes * 18)
-					-- FIXED POPUP MATH
-					DropContainer.Position = UDim2.new(0, Btn.AbsolutePosition.X, 0, Btn.AbsolutePosition.Y + 18)
+					DropContainer.Position = UDim2.new(0, relX, 0, relY + 18)
 					DropContainer.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					DropContainer.BorderColor3 = GameSenseLib.Theme.Outline
 					DropContainer.ZIndex = 101
@@ -720,6 +765,9 @@ function GameSenseLib:MakeWindow(options)
 						if opt.Callback then pcall(opt.Callback) end
 					end
 				end)
+				
+				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
+				Set(key)
 
 				return { Set = Set }
 			end
@@ -758,8 +806,14 @@ function GameSenseLib:MakeWindow(options)
 					if type(clr) == "table" then h,s,v = clr[1],clr[2],clr[3] else h,s,v = Color3.toHSV(clr) end
 					local c = Color3.fromHSV(h, s, v)
 					Btn.BackgroundColor3 = c
-					if opt.Flag then GameSenseLib.Flags[opt.Flag] = {h, s, v} end
+					
+					if opt.Flag then 
+						if not GameSenseLib.Flags[opt.Flag] then GameSenseLib.Flags[opt.Flag] = {} end
+						GameSenseLib.Flags[opt.Flag].Value = {h, s, v} 
+					end
+					
 					if opt.Callback then pcall(opt.Callback, c) end
+					if opt.Save and GameSenseLib.AutoSaveEnabled then GameSenseLib:SaveConfig("auto_config") end
 				end
 
 				local function ToggleRainbow(state)
@@ -771,7 +825,10 @@ function GameSenseLib:MakeWindow(options)
 								local c = Color3.fromHSV(h, s, v)
 								Btn.BackgroundColor3 = c
 								if activeSVMap and activeSVMap.Parent then activeSVMap.BackgroundColor3 = Color3.fromHSV(h, 1, 1) end
-								if opt.Flag then GameSenseLib.Flags[opt.Flag] = {h, s, v} end
+								if opt.Flag then 
+									if not GameSenseLib.Flags[opt.Flag] then GameSenseLib.Flags[opt.Flag] = {} end
+									GameSenseLib.Flags[opt.Flag].Value = {h, s, v} 
+								end
 								if opt.Callback then pcall(opt.Callback, c) end
 							end)
 						end
@@ -784,10 +841,12 @@ function GameSenseLib:MakeWindow(options)
 					ClosePopups()
 					PopupCatcher.Visible = true
 					
+					local relX = (Btn.AbsolutePosition.X - Main.AbsolutePosition.X) / uiScale.Scale
+					local relY = (Btn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
+
 					local Picker = Instance.new("Frame")
 					Picker.Size = UDim2.new(0, 140, 0, 165)
-					-- FIXED POPUP MATH
-					Picker.Position = UDim2.new(0, Btn.AbsolutePosition.X - 115, 0, Btn.AbsolutePosition.Y + 15)
+					Picker.Position = UDim2.new(0, relX - 115, 0, relY + 15)
 					Picker.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					Picker.BorderColor3 = GameSenseLib.Theme.Outline
 					Picker.ZIndex = 101
@@ -829,7 +888,6 @@ function GameSenseLib:MakeWindow(options)
 					})
 					HGrad.Parent = HueMap
 
-					-- RAINBOW TOGGLE ADDED TO POPUP
 					local RbToggle = Instance.new("TextButton")
 					RbToggle.Size = UDim2.new(1, -10, 0, 15)
 					RbToggle.Position = UDim2.new(0, 5, 0, 145)
@@ -905,8 +963,14 @@ function GameSenseLib:MakeWindow(options)
 				
 				local function Set(newVal)
 					Box.Text = newVal
-					if opt.Flag then GameSenseLib.Flags[opt.Flag] = newVal end
+					
+					if opt.Flag then 
+						if not GameSenseLib.Flags[opt.Flag] then GameSenseLib.Flags[opt.Flag] = {} end
+						GameSenseLib.Flags[opt.Flag].Value = newVal 
+					end
+					
 					if opt.Callback then pcall(opt.Callback, newVal) end
+					if opt.Save and GameSenseLib.AutoSaveEnabled then GameSenseLib:SaveConfig("auto_config") end
 				end
 
 				Box.FocusLost:Connect(function()
@@ -981,6 +1045,7 @@ function GameSenseLib:MakeWindow(options)
 		return TabObj
 	end
 
+	-- BUILT-IN SETTINGS TAB
 	local BuiltInSettings = WindowObj:MakeTab({ Name = "Settings", Icon = "rbxassetid://7734053495" })
 	BuiltInSettings.TabBtn.LayoutOrder = 99999
 
@@ -989,16 +1054,32 @@ function GameSenseLib:MakeWindow(options)
 	UISec:AddSlider({ Name = "UI Scale", Min = 50, Max = 150, Default = 100, ValueName = "%", Callback = function(val) uiScale.Scale = val / 100 end })
 
 	local TrackerSec = BuiltInSettings:AddSection({ Name = "HUD Tracking", Side = "Right" })
+	TrackerSec:AddToggle({ Name = "Watermark", Default = false, Callback = function(v) GameSenseLib:SetWatermarkVisibility(v) end })
 	
-	TrackerSec:AddToggle({ Name = "Watermark", Default = true, Callback = function(v) GameSenseLib:SetWatermarkVisibility(v) end })
-	TrackerSec:AddToggle({ Name = "Keybinds List", Default = true, Callback = function(v) GameSenseLib:SetKeybindsVisibility(v) end })
+	local kbListContainer = Instance.new("Frame")
+	kbListContainer.Parent = TrackerSec
+	
+	TrackerSec:AddToggle({ 
+		Name = "Keybinds List", 
+		Default = false, 
+		Callback = function(v) 
+			GameSenseLib:SetKeybindsVisibility(v) 
+			if v then 
+				for _, bind in ipairs(GameSenseLib.Binds) do bind.Label.Parent = KBContainer end
+			else
+				for _, bind in ipairs(GameSenseLib.Binds) do bind.Label.Parent = nil end
+			end
+		end 
+	})
 
+	-- CONFIG SYSTEM (Fixed to read .Value properly)
 	function GameSenseLib:SaveConfig(filename)
 		if not isfolder(self.ConfigFolder) then makefolder(self.ConfigFolder) end
 		local saveTable = {}
-		for flagName, flagValue in pairs(self.Flags) do
-			if type(flagValue) == "boolean" or type(flagValue) == "number" or type(flagValue) == "string" or type(flagValue) == "table" then
-				saveTable[flagName] = flagValue
+		for flagName, flagObj in pairs(self.Flags) do
+			local val = flagObj.Value
+			if type(val) == "boolean" or type(val) == "number" or type(val) == "string" or type(val) == "table" then
+				saveTable[flagName] = val
 			end
 		end
 		local success, encoded = pcall(function() return HttpService:JSONEncode(saveTable) end)
@@ -1025,10 +1106,14 @@ function GameSenseLib:MakeWindow(options)
 
 	function GameSenseLib:Destroy() 
 		if self.Gui then self.Gui:Destroy() end 
-		if keybindConnection then keybindConnection:Disconnect() end
+		if getgenv().GameSense_Menu_Connection then getgenv().GameSense_Menu_Connection:Disconnect() end
 	end
 	
-	function GameSenseLib:Init() end
+	function GameSenseLib:Init() 
+		if self.AutoSaveEnabled then
+			self:LoadConfig("auto_config")
+		end
+	end
 
 	return WindowObj
 end
