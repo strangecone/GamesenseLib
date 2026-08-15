@@ -1,5 +1,5 @@
--- GameSense Lib V11 (Orion Source Code Parity)
--- Fixed Fatal Initialization Crash, Perfected :Set() Object API, Scroll-Closing Popups.
+-- GameSense Lib V12 (The Final Fix)
+-- Fixed Popup Coordinates (Colorpickers & Dropdowns), Perfected Scaling.
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -75,6 +75,7 @@ function GameSenseLib:MakeWindow(options)
 	ScreenGui.Name = "GameSenseUI"
 	ScreenGui.ResetOnSpawn = false
 	ScreenGui.IgnoreGuiInset = true 
+	ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 	pcall(function() ScreenGui.Parent = CoreGui end)
 	if not ScreenGui.Parent then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 	
@@ -157,26 +158,6 @@ function GameSenseLib:MakeWindow(options)
 			tweenOut.Completed:Connect(function() NotifFrame:Destroy() end)
 		end)
 	end
-
-	local PopupContainer = Instance.new("Frame")
-	PopupContainer.Size = UDim2.new(1, 0, 1, 0)
-	PopupContainer.BackgroundTransparency = 1
-	PopupContainer.ZIndex = 100
-	PopupContainer.Parent = ScreenGui
-
-	local PopupCatcher = Instance.new("TextButton")
-	PopupCatcher.Size = UDim2.new(1, 0, 1, 0)
-	PopupCatcher.BackgroundTransparency = 1
-	PopupCatcher.Text = ""
-	PopupCatcher.ZIndex = 99
-	PopupCatcher.Visible = false
-	PopupCatcher.Parent = PopupContainer
-
-	local function ClosePopups()
-		for _, v in pairs(PopupContainer:GetChildren()) do if v ~= PopupCatcher then v:Destroy() end end
-		PopupCatcher.Visible = false
-	end
-	PopupCatcher.MouseButton1Click:Connect(ClosePopups)
 
 	local Watermark = Instance.new("TextLabel")
 	Watermark.Size = UDim2.new(0, 250, 0, 20)
@@ -269,6 +250,27 @@ function GameSenseLib:MakeWindow(options)
 
 	local uiScale = Instance.new("UIScale")
 	uiScale.Parent = Main
+
+	-- FIXED POPUP LAYER (Now properly glued inside Main so math coordinates match perfectly!)
+	local PopupContainer = Instance.new("Frame")
+	PopupContainer.Size = UDim2.new(1, 0, 1, 0)
+	PopupContainer.BackgroundTransparency = 1
+	PopupContainer.ZIndex = 1000
+	PopupContainer.Parent = Main 
+
+	local PopupCatcher = Instance.new("TextButton")
+	PopupCatcher.Size = UDim2.new(1, 0, 1, 0)
+	PopupCatcher.BackgroundTransparency = 1
+	PopupCatcher.Text = ""
+	PopupCatcher.ZIndex = 999
+	PopupCatcher.Visible = false
+	PopupCatcher.Parent = PopupContainer
+
+	local function ClosePopups()
+		for _, v in pairs(PopupContainer:GetChildren()) do if v ~= PopupCatcher then v:Destroy() end end
+		PopupCatcher.Visible = false
+	end
+	PopupCatcher.MouseButton1Click:Connect(ClosePopups)
 
 	local InnerMain = Instance.new("Frame")
 	InnerMain.Size = UDim2.new(1, -2, 1, -2)
@@ -636,6 +638,7 @@ function GameSenseLib:MakeWindow(options)
 					ClosePopups()
 					PopupCatcher.Visible = true
 
+					-- FIXED: Relative Math applied perfectly locally since PopupContainer is in Main
 					local relX = (MainBtn.AbsolutePosition.X - Main.AbsolutePosition.X) / uiScale.Scale
 					local relY = (MainBtn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
 
@@ -644,7 +647,7 @@ function GameSenseLib:MakeWindow(options)
 					DropContainer.Position = UDim2.new(0, relX, 0, relY + 20)
 					DropContainer.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					DropContainer.BorderColor3 = GameSenseLib.Theme.Outline
-					DropContainer.ZIndex = 101
+					DropContainer.ZIndex = 1001
 					DropContainer.Parent = PopupContainer
 
 					local DropLayout = Instance.new("UIListLayout")
@@ -660,7 +663,7 @@ function GameSenseLib:MakeWindow(options)
 						Btn.Font = GameSenseLib.Theme.Font
 						Btn.TextSize = 12
 						Btn.TextXAlignment = Enum.TextXAlignment.Left
-						Btn.ZIndex = 102
+						Btn.ZIndex = 1002
 						Btn.Parent = DropContainer
 
 						Btn.MouseButton1Click:Connect(function() Set(item) ClosePopups() end)
@@ -735,6 +738,7 @@ function GameSenseLib:MakeWindow(options)
 					ClosePopups()
 					PopupCatcher.Visible = true
 
+					-- FIXED: Relative Math applied perfectly locally since PopupContainer is in Main
 					local relX = (Btn.AbsolutePosition.X - Main.AbsolutePosition.X) / uiScale.Scale
 					local relY = (Btn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
 
@@ -744,7 +748,7 @@ function GameSenseLib:MakeWindow(options)
 					DropContainer.Position = UDim2.new(0, relX, 0, relY + 18)
 					DropContainer.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					DropContainer.BorderColor3 = GameSenseLib.Theme.Outline
-					DropContainer.ZIndex = 101
+					DropContainer.ZIndex = 1001
 					DropContainer.Parent = PopupContainer
 					local DropLayout = Instance.new("UIListLayout")
 					DropLayout.Parent = DropContainer
@@ -759,7 +763,7 @@ function GameSenseLib:MakeWindow(options)
 						MBtn.Font = GameSenseLib.Theme.Font
 						MBtn.TextSize = 11
 						MBtn.TextXAlignment = Enum.TextXAlignment.Left
-						MBtn.ZIndex = 102
+						MBtn.ZIndex = 1002
 						MBtn.Parent = DropContainer
 						MBtn.MouseButton1Click:Connect(function() bindData.Mode = m ClosePopups() end)
 					end
@@ -776,9 +780,6 @@ function GameSenseLib:MakeWindow(options)
 						if opt.Callback then pcall(opt.Callback) end
 					end
 				end)
-				
-				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
-				Set(key)
 
 				local Obj = {}
 				function Obj:Set(v) Set(v) end
@@ -854,6 +855,7 @@ function GameSenseLib:MakeWindow(options)
 					ClosePopups()
 					PopupCatcher.Visible = true
 					
+					-- FIXED: Relative Math applied perfectly locally since PopupContainer is in Main
 					local relX = (Btn.AbsolutePosition.X - Main.AbsolutePosition.X) / uiScale.Scale
 					local relY = (Btn.AbsolutePosition.Y - Main.AbsolutePosition.Y) / uiScale.Scale
 
@@ -862,7 +864,7 @@ function GameSenseLib:MakeWindow(options)
 					Picker.Position = UDim2.new(0, relX - 115, 0, relY + 15)
 					Picker.BackgroundColor3 = GameSenseLib.Theme.MenuBg
 					Picker.BorderColor3 = GameSenseLib.Theme.Outline
-					Picker.ZIndex = 101
+					Picker.ZIndex = 1001
 					Picker.Parent = PopupContainer
 
 					local SVMap = Instance.new("TextButton")
@@ -872,16 +874,16 @@ function GameSenseLib:MakeWindow(options)
 					SVMap.BorderSizePixel = 0
 					SVMap.Text = ""
 					SVMap.AutoButtonColor = false
-					SVMap.ZIndex = 102
+					SVMap.ZIndex = 1002
 					SVMap.Parent = Picker
 					activeSVMap = SVMap
 
 					local WGrad = Instance.new("UIGradient", Instance.new("Frame", SVMap))
-					WGrad.Parent.Size = UDim2.new(1,0,1,0) WGrad.Parent.BackgroundColor3 = Color3.new(1,1,1) WGrad.Parent.BorderSizePixel = 0 WGrad.Parent.ZIndex = 103
+					WGrad.Parent.Size = UDim2.new(1,0,1,0) WGrad.Parent.BackgroundColor3 = Color3.new(1,1,1) WGrad.Parent.BorderSizePixel = 0 WGrad.Parent.ZIndex = 1003
 					WGrad.Color = ColorSequence.new(Color3.new(1,1,1), Color3.new(1,1,1)) WGrad.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,0), NumberSequenceKeypoint.new(1,1)})
 					
 					local BGrad = Instance.new("UIGradient", Instance.new("Frame", SVMap))
-					BGrad.Parent.Size = UDim2.new(1,0,1,0) BGrad.Parent.BackgroundColor3 = Color3.new(1,1,1) BGrad.Parent.BorderSizePixel = 0 BGrad.Parent.ZIndex = 104
+					BGrad.Parent.Size = UDim2.new(1,0,1,0) BGrad.Parent.BackgroundColor3 = Color3.new(1,1,1) BGrad.Parent.BorderSizePixel = 0 BGrad.Parent.ZIndex = 1004
 					BGrad.Color = ColorSequence.new(Color3.new(0,0,0), Color3.new(0,0,0)) BGrad.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0,1), NumberSequenceKeypoint.new(1,0)}) BGrad.Rotation = 90
 
 					local HueMap = Instance.new("TextButton")
@@ -890,7 +892,7 @@ function GameSenseLib:MakeWindow(options)
 					HueMap.BackgroundColor3 = Color3.new(1,1,1)
 					HueMap.BorderSizePixel = 0
 					HueMap.Text = ""
-					HueMap.ZIndex = 102
+					HueMap.ZIndex = 1002
 					HueMap.Parent = Picker
 
 					local HGrad = Instance.new("UIGradient")
@@ -910,7 +912,7 @@ function GameSenseLib:MakeWindow(options)
 					RbToggle.TextColor3 = rainbow and GameSenseLib.Theme.Accent or GameSenseLib.Theme.Text
 					RbToggle.Font = GameSenseLib.Theme.Font
 					RbToggle.TextSize = 11
-					RbToggle.ZIndex = 102
+					RbToggle.ZIndex = 1002
 					RbToggle.Parent = Picker
 
 					RbToggle.MouseButton1Click:Connect(function()
@@ -1068,7 +1070,6 @@ function GameSenseLib:MakeWindow(options)
 		return TabObj
 	end
 
-	-- AUTOMATIC UNREMOVABLE SETTINGS TAB
 	local BuiltInSettings = WindowObj:MakeTab({ Name = "Settings", Icon = "rbxassetid://7734053495", IsSettingsTab = true })
 
 	local UISec = BuiltInSettings:AddSection({ Name = "UI Settings", Side = "Left" })
@@ -1078,16 +1079,12 @@ function GameSenseLib:MakeWindow(options)
 	local TrackerSec = BuiltInSettings:AddSection({ Name = "HUD Tracking", Side = "Right" })
 	TrackerSec:AddToggle({ Name = "Watermark", Default = false, Callback = function(v) GameSenseLib:SetWatermarkVisibility(v) end })
 	
-	-- No crashing!
 	TrackerSec:AddToggle({ 
 		Name = "Keybinds List", 
 		Default = false, 
-		Callback = function(v) 
-			GameSenseLib:SetKeybindsVisibility(v) 
-		end 
+		Callback = function(v) GameSenseLib:SetKeybindsVisibility(v) end 
 	})
 
-	-- CONFIG SYSTEM
 	function GameSenseLib:SaveConfig(filename)
 		if not isfolder(self.ConfigFolder) then makefolder(self.ConfigFolder) end
 		local saveTable = {}
