@@ -1,5 +1,5 @@
--- GameSense Lib V10 (Final Orion API Parity Fix)
--- Fixes Tab Injection, Auto-Saving, Flag .Value formatting, and Memory Leaks.
+-- GameSense Lib V11 (Orion Source Code Parity)
+-- Fixed Fatal Initialization Crash, Perfected :Set() Object API, Scroll-Closing Popups.
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -9,11 +9,10 @@ local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
--- 100% Crash-Proof Anti-Duplicate System (Clears old GUIs and old Keybind Connections)
+-- 100% Crash-Proof Anti-Duplicate System
 pcall(function()
-	if getgenv().GameSense_UI_Instance then getgenv().GameSense_UI_Instance:Destroy() end
-	if getgenv().GameSense_Menu_Connection then getgenv().GameSense_Menu_Connection:Disconnect() end
-	
+	if getgenv().GameSense_UI_Instance then getgenv().GameSense_UI_Instance:Destroy() getgenv().GameSense_UI_Instance = nil end
+	if getgenv().GameSense_Menu_Connection then getgenv().GameSense_Menu_Connection:Disconnect() getgenv().GameSense_Menu_Connection = nil end
 	for _, v in pairs(CoreGui:GetChildren()) do if v.Name == "GameSenseUI" then v:Destroy() end end
 	if LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui") then
 		for _, v in pairs(LocalPlayer.PlayerGui:GetChildren()) do if v.Name == "GameSenseUI" then v:Destroy() end end
@@ -237,9 +236,7 @@ function GameSenseLib:MakeWindow(options)
 	KBLayout.Parent = KBContainer
 
 	RunService.RenderStepped:Connect(function(dt)
-		if Watermark.Visible then 
-			Watermark.Text = string.format(" gamesense | %s | %d fps", LocalPlayer.Name, math.floor(1/dt)) 
-		end
+		if Watermark.Visible then Watermark.Text = string.format(" gamesense | %s | %d fps", LocalPlayer.Name, math.floor(1/dt)) end
 		if KeybindsFrame.Visible then
 			local count = 0
 			for _, bind in ipairs(GameSenseLib.Binds) do
@@ -319,14 +316,16 @@ function GameSenseLib:MakeWindow(options)
 		end
 	end)
 
-	local WindowObj = {Tabs = {}, TabCount = 0}
+	local WindowObj = {Tabs = {}, TabCount = 0, FirstUserTab = false}
 
 	function WindowObj:MakeTab(tabOptions)
 		WindowObj.TabCount = WindowObj.TabCount + 1
+		local isSettings = tabOptions.IsSettingsTab or false
+		
 		local TabBtn = Instance.new("TextButton")
 		TabBtn.Size = UDim2.new(1, 0, 0, 50)
 		TabBtn.BackgroundTransparency = 1
-		TabBtn.LayoutOrder = WindowObj.TabCount
+		TabBtn.LayoutOrder = isSettings and 99999 or WindowObj.TabCount
 		TabBtn.Text = ""
 		TabBtn.Parent = Sidebar
 
@@ -373,6 +372,9 @@ function GameSenseLib:MakeWindow(options)
 		RightPad.PaddingTop = UDim.new(0, 12)
 		RightPad.PaddingBottom = UDim.new(0, 12)
 		RightPad.Parent = RightCol
+		
+		LeftCol:GetPropertyChangedSignal("CanvasPosition"):Connect(ClosePopups)
+		RightCol:GetPropertyChangedSignal("CanvasPosition"):Connect(ClosePopups)
 
 		TabBtn.MouseButton1Click:Connect(function()
 			for _, tab in pairs(WindowObj.Tabs) do
@@ -384,16 +386,16 @@ function GameSenseLib:MakeWindow(options)
 			ClosePopups()
 		end)
 
-		if #WindowObj.Tabs == 0 then
+		if not isSettings and not WindowObj.FirstUserTab then
+			WindowObj.FirstUserTab = true
 			TabContent.Visible = true
 			IconImg.ImageColor3 = GameSenseLib.Theme.Accent
 		end
 
 		table.insert(WindowObj.Tabs, {Content = TabContent, Icon = IconImg})
 
-		local TabObj = {TabBtn = TabBtn}
+		local TabObj = {}
 		
-		-- FIX: Orion compatibility for injecting directly into tabs
 		local DefaultSection = nil
 		local function GetDefaultSection()
 			if not DefaultSection then DefaultSection = TabObj:AddSection({ Name = "General", Side = "Left" }) end
@@ -492,7 +494,6 @@ function GameSenseLib:MakeWindow(options)
 					state = val
 					Box.BackgroundColor3 = state and GameSenseLib.Theme.Accent or GameSenseLib.Theme.DarkOutline
 					
-					-- FIX: Orion Flags are formatted as Flags[Name].Value
 					if opt.Flag then 
 						if not GameSenseLib.Flags[opt.Flag] then GameSenseLib.Flags[opt.Flag] = {} end
 						GameSenseLib.Flags[opt.Flag].Value = state 
@@ -505,7 +506,10 @@ function GameSenseLib:MakeWindow(options)
 				
 				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
 				Set(state)
-				return { Set = Set }
+				
+				local Obj = {}
+				function Obj:Set(val) Set(val) end
+				return Obj
 			end
 
 			function SectionObj:AddSlider(opt)
@@ -575,7 +579,10 @@ function GameSenseLib:MakeWindow(options)
 				
 				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
 				Set(val)
-				return { Set = Set }
+				
+				local Obj = {}
+				function Obj:Set(v) Set(v) end
+				return Obj
 			end
 
 			function SectionObj:AddDropdown(opt)
@@ -662,7 +669,11 @@ function GameSenseLib:MakeWindow(options)
 
 				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
 				Set(selected)
-				return { Set = Set, Refresh = Refresh }
+				
+				local Obj = {}
+				function Obj:Set(v) Set(v) end
+				function Obj:Refresh(l, p) Refresh(l, p) end
+				return Obj
 			end
 
 			function SectionObj:AddBind(opt)
@@ -769,7 +780,9 @@ function GameSenseLib:MakeWindow(options)
 				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
 				Set(key)
 
-				return { Set = Set }
+				local Obj = {}
+				function Obj:Set(v) Set(v) end
+				return Obj
 			end
 			
 			function SectionObj:AddColorpicker(opt)
@@ -929,7 +942,10 @@ function GameSenseLib:MakeWindow(options)
 
 				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
 				Set({h,s,v})
-				return { Set = Set }
+				
+				local Obj = {}
+				function Obj:Set(v) Set(v) end
+				return Obj
 			end
 
 			function SectionObj:AddTextbox(opt)
@@ -981,7 +997,10 @@ function GameSenseLib:MakeWindow(options)
 				
 				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
 				Set(val)
-				return { Set = Set }
+				
+				local Obj = {}
+				function Obj:Set(v) Set(v) end
+				return Obj
 			end
 
 			function SectionObj:AddButton(opt)
@@ -1007,7 +1026,9 @@ function GameSenseLib:MakeWindow(options)
 				Label.TextSize = 12
 				Label.TextXAlignment = Enum.TextXAlignment.Left
 				Label.Parent = ItemContainer
-				return { Set = function(val) Label.Text = val end }
+				local Obj = {}
+				function Obj:Set(val) Label.Text = val end
+				return Obj
 			end
 			
 			function SectionObj:AddParagraph(title, content)
@@ -1037,7 +1058,9 @@ function GameSenseLib:MakeWindow(options)
 				C.TextXAlignment = Enum.TextXAlignment.Left
 				C.Parent = Frame
 
-				return { Set = function(newTitle, newContent) T.Text = newTitle; C.Text = newContent end }
+				local Obj = {}
+				function Obj:Set(newTitle, newContent) T.Text = newTitle; C.Text = newContent end
+				return Obj
 			end
 
 			return SectionObj
@@ -1045,9 +1068,8 @@ function GameSenseLib:MakeWindow(options)
 		return TabObj
 	end
 
-	-- BUILT-IN SETTINGS TAB
-	local BuiltInSettings = WindowObj:MakeTab({ Name = "Settings", Icon = "rbxassetid://7734053495" })
-	BuiltInSettings.TabBtn.LayoutOrder = 99999
+	-- AUTOMATIC UNREMOVABLE SETTINGS TAB
+	local BuiltInSettings = WindowObj:MakeTab({ Name = "Settings", Icon = "rbxassetid://7734053495", IsSettingsTab = true })
 
 	local UISec = BuiltInSettings:AddSection({ Name = "UI Settings", Side = "Left" })
 	UISec:AddBind({ Name = "Menu Keybind", Default = Enum.KeyCode.Insert, OnKeyChange = function(key) GameSenseLib.MenuKey = key end })
@@ -1056,23 +1078,16 @@ function GameSenseLib:MakeWindow(options)
 	local TrackerSec = BuiltInSettings:AddSection({ Name = "HUD Tracking", Side = "Right" })
 	TrackerSec:AddToggle({ Name = "Watermark", Default = false, Callback = function(v) GameSenseLib:SetWatermarkVisibility(v) end })
 	
-	local kbListContainer = Instance.new("Frame")
-	kbListContainer.Parent = TrackerSec
-	
+	-- No crashing!
 	TrackerSec:AddToggle({ 
 		Name = "Keybinds List", 
 		Default = false, 
 		Callback = function(v) 
 			GameSenseLib:SetKeybindsVisibility(v) 
-			if v then 
-				for _, bind in ipairs(GameSenseLib.Binds) do bind.Label.Parent = KBContainer end
-			else
-				for _, bind in ipairs(GameSenseLib.Binds) do bind.Label.Parent = nil end
-			end
 		end 
 	})
 
-	-- CONFIG SYSTEM (Fixed to read .Value properly)
+	-- CONFIG SYSTEM
 	function GameSenseLib:SaveConfig(filename)
 		if not isfolder(self.ConfigFolder) then makefolder(self.ConfigFolder) end
 		local saveTable = {}
