@@ -5875,21 +5875,16 @@ do -- Library
 end
 
 -- ============================================================
--- === GamesenseLib – Orion‑style wrapper with Safe Proxies ===
+-- === GamesenseLib – Orion‑style explicit API Wrapper ======
 -- ============================================================
 
 local GamesenseLib = {
-    _window = nil,
+    Flags = {},
     _internalLibrary = Library,
 }
 
--- Orion handles these globally
 function GamesenseLib:Init()
     Library:Init()
-end
-
-function GamesenseLib:Destroy()
-    Library:Unload()
 end
 
 function GamesenseLib:MakeNotification(notifConfig)
@@ -5897,65 +5892,29 @@ function GamesenseLib:MakeNotification(notifConfig)
     Library:Notify({
         Message = notifConfig.Content or notifConfig.Title or "Notification",
         Delay = notifConfig.Time or 5,
-        Position = notifConfig.Position or "Top Left",
+        Position = "Top Left",
     })
 end
 
--- Safely expose Flags for Orion scripts to read
-GamesenseLib.Flags = setmetatable({}, {
-    __index = function(_, key)
-        local element = Library.Flags[key]
-        if element and element.Get then
-            return { Value = element:Get() }
-        end
-        return { Value = nil }
-    end
-})
-
--- Bulletproof Proxy: Absorbs missing Orion methods so huge scripts NEVER crash
-local function createSafeProxy(instance, overrides)
-    local proxy = {}
-    for k, v in pairs(overrides or {}) do
-        proxy[k] = v
-    end
-    return setmetatable(proxy, {
-        __index = function(self, key)
-            -- Use our override if it exists
-            if overrides and overrides[key] then return overrides[key] end
-            -- Return native method if it exists
-            if instance and type(instance) == "table" and instance[key] ~= nil then return instance[key] end
-            -- If the script asks for a missing method, return a silent dummy function to prevent the crash!
-            return function() end
-        end,
-        __newindex = function(self, key, value)
-            if instance and type(instance) == "table" then
-                instance[key] = value
-            end
-        end
-    })
+function GamesenseLib:Destroy()
+    Library:Unload()
 end
 
 function GamesenseLib:MakeWindow(config)
     config = config or {}
-    local name = config.Name or "gamesense"
-    local saveConfig = config.SaveConfig or false
-    local configFolder = config.ConfigFolder or "gamesense"
-    
-    if saveConfig then
-        Library.Folder = configFolder
-        Library.ConfigFolder = configFolder .. "/Configs"
+    local window = Library:Window({
+        Name = config.Name or "gamesense",
+        CloseBind = Enum.KeyCode.Insert,
+    })
+
+    if config.SaveConfig then
+        Library.Folder = config.ConfigFolder or "gamesense"
+        Library.ConfigFolder = Library.Folder .. "/Configs"
         if not isfolder(Library.Folder) then makefolder(Library.Folder) end
         if not isfolder(Library.ConfigFolder) then makefolder(Library.ConfigFolder) end
     end
-    
-    local window = Library:Window({
-        Name = name,
-        CloseBind = Enum.KeyCode.Insert,
-    })
-    
-    self._window = window
 
-    -- Built‑in Settings Tab
+    -- Create built-in Settings Tab safely utilizing native internal elements
     local settingsTab = window:CreateTab({ Icon = "rbxassetid://15453349637" })
     local settingsSection = settingsTab:Section({ Name = "Settings", Side = "Right", Fill = true })
 
@@ -5999,7 +5958,7 @@ function GamesenseLib:MakeWindow(config)
         Name = "Unload",
         Callback = function() Library:Unload() end
     })
-
+    
     settingsSection:Button({
         Name = "Disable all",
         Callback = function() Library:Disable() end
@@ -6007,157 +5966,186 @@ function GamesenseLib:MakeWindow(config)
 
     window:SetTab(1)
 
-    -- Return the Safe Wrapper for the Window
-    local windowProxy = {
-        MakeTab = function(_, tabConfig)
-            tabConfig = tabConfig or {}
-            local icon = tabConfig.Icon or "rbxassetid://8547236654"
-            local tab = window:CreateTab({ Icon = icon })
-            
-            -- Gamesense uses Left/Right sections. We alternate elements between them to simulate Orion.
-            local leftSection = tab:Section({ Name = tabConfig.Name or "Tab", Side = "Left", Fill = true })
-            local rightSection = tab:Section({ Name = "", Side = "Right", Fill = true })
-            local toggleSide = false
-            
-            local function getNextSection()
-                toggleSide = not toggleSide
-                return toggleSide and leftSection or rightSection
-            end
+    -- Wrap the return object explicitly mapping to the Orion API layout without deep Metatables
+    local windowWrapper = {}
 
-            local tabWrapper = {
-                AddSection = function(self, opts)
-                    opts = opts or {}
-                    leftSection = tab:Section({ Name = opts.Name or "Section", Side = "Left", Fill = true })
-                    rightSection = tab:Section({ Name = "", Side = "Right", Fill = true })
-                    return createSafeProxy(leftSection, self)
-                end,
+    function windowWrapper:MakeTab(tabConfig)
+        tabConfig = tabConfig or {}
+        local tab = window:CreateTab({ Icon = tabConfig.Icon or "rbxassetid://8547236654" })
+        
+        local leftSection = tab:Section({ Name = tabConfig.Name or "Tab", Side = "Left", Fill = true })
+        local rightSection = tab:Section({ Name = "", Side = "Right", Fill = true })
+        local useLeft = false
+        
+        -- Automatically alternates UI layout left and right to match Orion's standard list view
+        local function getNextSection()
+            useLeft = not useLeft
+            return useLeft and leftSection or rightSection
+        end
 
-                AddButton = function(_, btnConfig)
-                    btnConfig = btnConfig or {}
-                    local btn = getNextSection():Button({
-                        Name = btnConfig.Name or "Button",
-                        Callback = btnConfig.Callback or function() end,
-                        Confirmation = btnConfig.Confirmation or false,
-                        Risky = btnConfig.Risky or false,
-                    })
-                    return createSafeProxy(btn)
-                end,
+        local tabWrapper = {}
 
-                AddToggle = function(_, togConfig)
-                    togConfig = togConfig or {}
-                    local tog = getNextSection():Toggle({
-                        Default = togConfig.Default or false,
-                        Name = togConfig.Name or "Toggle",
-                        Risky = togConfig.Risky or false,
-                        Flag = togConfig.Flag or Library:NewFlag(),
-                        Callback = togConfig.Callback or function() end,
-                    })
-                    return createSafeProxy(tog, {
-                        Set = function(self, val) if tog.ToggleGUI then tog:ToggleGUI(val) end end
-                    })
-                end,
+        function tabWrapper:AddSection(secConfig)
+            secConfig = secConfig or {}
+            leftSection = tab:Section({ Name = secConfig.Name or "Section", Side = "Left", Fill = true })
+            rightSection = tab:Section({ Name = "", Side = "Right", Fill = true })
+            useLeft = false
+            return self 
+        end
 
-                AddSlider = function(_, sliConfig)
-                    sliConfig = sliConfig or {}
-                    local sli = getNextSection():Slider({
-                        Name = sliConfig.Name or "Slider",
-                        Min = sliConfig.Min or 0,
-                        Max = sliConfig.Max or 100,
-                        Default = sliConfig.Default or sliConfig.Value or 50,
-                        Decimal = sliConfig.Increment or 1,
-                        Ending = sliConfig.ValueName or "",
-                        Flag = sliConfig.Flag or Library:NewFlag(),
-                        Callback = sliConfig.Callback or function() end,
-                    })
-                    return createSafeProxy(sli)
-                end,
+        function tabWrapper:AddButton(cfg)
+            cfg = cfg or {}
+            local btn = getNextSection():Button({
+                Name = cfg.Name or "Button",
+                Callback = cfg.Callback or function() end,
+                Confirmation = cfg.Confirmation or false
+            })
+            return { Set = function() end }
+        end
 
-                AddDropdown = function(_, dropConfig)
-                    dropConfig = dropConfig or {}
-                    local dropdown = getNextSection():Dropdown({
-                        Name = dropConfig.Name or "Dropdown",
-                        Content = dropConfig.Options or {},
-                        Default = dropConfig.Default or "None",
-                        Flag = dropConfig.Flag or Library:NewFlag(),
-                        Callback = dropConfig.Callback or function() end,
-                    })
-                    return createSafeProxy(dropdown)
-                end,
-
-                AddColorpicker = function(_, cpConfig)
-                    cpConfig = cpConfig or {}
-                    local label = getNextSection():Label({ Message = cpConfig.Name or "Colorpicker" })
-                    local picker = label:ColorPicker({
-                        Default = cpConfig.Default or Library.Theme.Default.Accent,
-                        Flag = cpConfig.Flag or Library:NewFlag(),
-                        Callback = cpConfig.Callback or function() end,
-                    })
-                    return createSafeProxy(picker)
-                end,
-
-                AddBind = function(_, bindConfig)
-                    bindConfig = bindConfig or {}
-                    local defKey = bindConfig.Default or Enum.KeyCode.Backspace
-                    if type(defKey) == "string" then pcall(function() defKey = Enum.KeyCode[defKey] end) end
-                    
-                    local label = getNextSection():Label({ 
-                        Message = bindConfig.Name or "Bind", 
-                        Callback = bindConfig.Callback or function() end 
-                    })
-                    local bind = label:Keybind({
-                        Default = defKey,
-                        Mode = bindConfig.Hold and "On hotkey" or "Toggle",
-                        Flag = bindConfig.Flag or Library:NewFlag(),
-                        Callback = function() end, 
-                    })
-                    return createSafeProxy(bind)
-                end,
-
-                AddLabel = function(_, labelConfig)
-                    labelConfig = labelConfig or {}
-                    local label = getNextSection():Label({ Message = labelConfig.Text or "Label" })
-                    return createSafeProxy(label)
-                end,
-
-                AddParagraph = function(_, paraConfig)
-                    paraConfig = paraConfig or {}
-                    local paragraph = getNextSection():Label({ Message = (paraConfig.Title or "") .. "\n" .. (paraConfig.Content or "") })
-                    return createSafeProxy(paragraph)
-                end,
-
-                AddTextbox = function(_, tbConfig)
-                    tbConfig = tbConfig or {}
-                    local textbox = getNextSection():TextBox({
-                        Name = tbConfig.Name or "Textbox",
-                        Default = tbConfig.Default or tbConfig.Text or "",
-                        ClearOnFocus = tbConfig.TextDisappear or false,
-                        Flag = tbConfig.Flag or Library:NewFlag(),
-                        Callback = tbConfig.Callback or function() end,
-                    })
-                    return createSafeProxy(textbox)
-                end,
-
-                AddMultiBox = function(_, mbConfig)
-                    mbConfig = mbConfig or {}
-                    local multibox = getNextSection():MultiBox({
-                        Name = mbConfig.Name or "MultiBox",
-                        Content = mbConfig.Options or {},
-                        Default = mbConfig.Default or {},
-                        Flag = mbConfig.Flag or Library:NewFlag(),
-                        Callback = mbConfig.Callback or function() end,
-                    })
-                    return createSafeProxy(multibox)
-                end,
+        function tabWrapper:AddToggle(cfg)
+            cfg = cfg or {}
+            local flag = cfg.Flag or Library:NewFlag()
+            local tog = getNextSection():Toggle({
+                Name = cfg.Name or "Toggle",
+                Default = cfg.Default or false,
+                Flag = flag,
+                Callback = function(val)
+                    GamesenseLib.Flags[flag] = {Value = val}
+                    if cfg.Callback then cfg.Callback(val) end
+                end
+            })
+            GamesenseLib.Flags[flag] = {Value = cfg.Default or false}
+            return {
+                Value = cfg.Default or false,
+                Set = function(self, val) tog:ToggleGUI(val) end
             }
+        end
 
-            return createSafeProxy(tab, tabWrapper)
-        end,
-        SelectTab = function(_, tabIndex)
-            window:SetTab(tabIndex)
-        end,
-    }
+        function tabWrapper:AddSlider(cfg)
+            cfg = cfg or {}
+            local flag = cfg.Flag or Library:NewFlag()
+            local sli = getNextSection():Slider({
+                Name = cfg.Name or "Slider",
+                Min = cfg.Min or 0,
+                Max = cfg.Max or 100,
+                Default = cfg.Default or cfg.Value or 50,
+                Decimal = cfg.Increment or 1,
+                Ending = cfg.ValueName or "",
+                Flag = flag,
+                Callback = function(val)
+                    GamesenseLib.Flags[flag] = {Value = val}
+                    if cfg.Callback then cfg.Callback(val) end
+                end
+            })
+            GamesenseLib.Flags[flag] = {Value = cfg.Default or cfg.Value or 50}
+            return {
+                Value = cfg.Default or cfg.Value or 50,
+                Set = function(self, val) sli:Set(val) end
+            }
+        end
 
-    return createSafeProxy(window, windowProxy)
+        function tabWrapper:AddDropdown(cfg)
+            cfg = cfg or {}
+            local flag = cfg.Flag or Library:NewFlag()
+            local drop = getNextSection():Dropdown({
+                Name = cfg.Name or "Dropdown",
+                Content = cfg.Options or {},
+                Default = cfg.Default or "None",
+                Flag = flag,
+                Callback = function(val)
+                    GamesenseLib.Flags[flag] = {Value = val}
+                    if cfg.Callback then cfg.Callback(val) end
+                end
+            })
+            GamesenseLib.Flags[flag] = {Value = cfg.Default or "None"}
+            return {
+                Value = cfg.Default or "None",
+                Set = function(self, val) drop:Set(val) end,
+                Refresh = function(self, opts, def) end 
+            }
+        end
+
+        function tabWrapper:AddColorpicker(cfg)
+            cfg = cfg or {}
+            local flag = cfg.Flag or Library:NewFlag()
+            local label = getNextSection():Label({ Message = cfg.Name or "Colorpicker" })
+            local cp = label:ColorPicker({
+                Default = cfg.Default or Color3.fromRGB(255,255,255),
+                Flag = flag,
+                Callback = function(val)
+                    GamesenseLib.Flags[flag] = {Value = val}
+                    if cfg.Callback then cfg.Callback(val) end
+                end
+            })
+            GamesenseLib.Flags[flag] = {Value = cfg.Default or Color3.fromRGB(255,255,255)}
+            return {
+                Value = cfg.Default or Color3.fromRGB(255,255,255),
+                Set = function(self, val) cp:Set(val) end
+            }
+        end
+
+        function tabWrapper:AddBind(cfg)
+            cfg = cfg or {}
+            local flag = cfg.Flag or Library:NewFlag()
+            
+            -- Prevent Orion keycode string crashes
+            local def = cfg.Default or Enum.KeyCode.Unknown
+            if type(def) == "string" then pcall(function() def = Enum.KeyCode[def] end) end
+
+            local label = getNextSection():Label({ Message = cfg.Name or "Bind", Callback = function()
+                if cfg.Callback then cfg.Callback() end
+            end})
+            
+            local bind = label:Keybind({
+                Default = def,
+                Mode = cfg.Hold and "On hotkey" or "Toggle",
+                Flag = flag,
+                Callback = function(key) end
+            })
+            GamesenseLib.Flags[flag] = {Value = def}
+            return {
+                Value = def,
+                Set = function(self, val) bind:Set(val) end
+            }
+        end
+
+        function tabWrapper:AddLabel(cfg)
+            cfg = cfg or {}
+            local label = getNextSection():Label({ Message = cfg.Text or "Label" })
+            return { Set = function(self, val) end }
+        end
+
+        function tabWrapper:AddParagraph(cfg)
+            cfg = cfg or {}
+            local para = getNextSection():Label({ Message = (cfg.Title or "") .. "\n" .. (cfg.Content or "") })
+            return { Set = function(self, val1, val2) end }
+        end
+
+        function tabWrapper:AddTextbox(cfg)
+            cfg = cfg or {}
+            local flag = cfg.Flag or Library:NewFlag()
+            local tb = getNextSection():TextBox({
+                Name = cfg.Name or "Textbox",
+                Default = cfg.Default or cfg.Text or "",
+                ClearOnFocus = cfg.TextDisappear or false,
+                Flag = flag,
+                Callback = function(val)
+                    GamesenseLib.Flags[flag] = {Value = val}
+                    if cfg.Callback then cfg.Callback(val) end
+                end
+            })
+            GamesenseLib.Flags[flag] = {Value = cfg.Default or cfg.Text or ""}
+            return {
+                Value = cfg.Default or cfg.Text or "",
+                Set = function(self, val) end
+            }
+        end
+
+        return tabWrapper
+    end
+
+    return windowWrapper
 end
 
 return GamesenseLib
