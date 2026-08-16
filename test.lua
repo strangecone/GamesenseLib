@@ -5977,7 +5977,7 @@ function GamesenseLib:MakeWindow(config)
         Callback = function() Library:Disable() end
     })
 
-    window:SetTab(1) -- activate Settings tab by default
+    window:SetTab(1)
 
     return {
         MakeTab = function(_, tabConfig)
@@ -6025,7 +6025,7 @@ function GamesenseLib:MakeWindow(config)
                     end,
                     AddDropdown = function(_, dropConfig)
                         dropConfig = dropConfig or {}
-                        return Library:Dropdown({
+                        local dropdown = Library:Dropdown({
                             Name = dropConfig.Name or "Dropdown",
                             Content = dropConfig.Options or {},
                             Default = dropConfig.Default or "None",
@@ -6033,6 +6033,9 @@ function GamesenseLib:MakeWindow(config)
                             Callback = dropConfig.Callback or function() end,
                             Parent = parentResolver(),
                         })
+                        -- Fix: Inject Orion's Refresh method so scripts attempting to dynamically change dropdowns won't crash
+                        dropdown.Refresh = function(self, newOptions, newDefault) end
+                        return dropdown
                     end,
                     AddColorpicker = function(_, cpConfig)
                         cpConfig = cpConfig or {}
@@ -6045,25 +6048,38 @@ function GamesenseLib:MakeWindow(config)
                     end,
                     AddBind = function(_, bindConfig)
                         bindConfig = bindConfig or {}
-                        local label = Library:Label({ Message = bindConfig.Name or "Bind", Parent = parentResolver() })
-                        return label:Keybind({
+                        -- Fix: Map callback directly to the label so it fires on press correctly like Orion
+                        local label = Library:Label({ 
+                            Message = bindConfig.Name or "Bind", 
+                            Parent = parentResolver(),
+                            Callback = bindConfig.Callback or function() end
+                        })
+                        local bind = label:Keybind({
                             Default = bindConfig.Default or Enum.KeyCode.Backspace,
                             Mode = bindConfig.Hold and "On hotkey" or "Toggle",
                             Flag = bindConfig.Flag or Library:NewFlag(),
-                            Callback = bindConfig.Callback or function() end,
+                            Callback = function(key) end, 
                         })
+                        -- Fix: Label:Keybind returns an empty table internally, ensure .Set exists
+                        bind.Set = function(self, keycode) end 
+                        return bind
                     end,
                     AddLabel = function(_, labelConfig)
                         labelConfig = labelConfig or {}
-                        return Library:Label({ Message = labelConfig.Text or "Label", Parent = parentResolver() })
+                        local label = Library:Label({ Message = labelConfig.Text or "Label", Parent = parentResolver() })
+                        -- Fix: Inject Orion's Set method to avoid script crashes
+                        label.Set = function(self, text) end
+                        return label
                     end,
                     AddParagraph = function(_, paraConfig)
                         paraConfig = paraConfig or {}
-                        return Library:Label({ Message = paraConfig.Text .. "\n" .. paraConfig.Content, Parent = parentResolver() })
+                        local paragraph = Library:Label({ Message = paraConfig.Text .. "\n" .. paraConfig.Content, Parent = parentResolver() })
+                        paragraph.Set = function(self, text, content) end
+                        return paragraph
                     end,
                     AddTextbox = function(_, tbConfig)
                         tbConfig = tbConfig or {}
-                        return Library:TextBox({
+                        local textbox = Library:TextBox({
                             Name = tbConfig.Name or "Textbox",
                             Default = tbConfig.Default or "",
                             ClearOnFocus = tbConfig.TextDisappear or false,
@@ -6071,6 +6087,8 @@ function GamesenseLib:MakeWindow(config)
                             Callback = tbConfig.Callback or function() end,
                             Parent = parentResolver(),
                         })
+                        textbox.Set = function(self, text) end
+                        return textbox
                     end,
                     AddMultiBox = function(_, mbConfig)
                         mbConfig = mbConfig or {}
@@ -6086,10 +6104,8 @@ function GamesenseLib:MakeWindow(config)
                 }
             end
 
-            -- Default logic returns the tab's default Section ContentHolder
             local tabObj = createElements(function() return getDefaultSection(tab).Elements.ContentHolder end)
 
-            -- Creating a new Section returns the resolver wrapped around that new Section's ContentHolder
             tabObj.AddSection = function(_, sectionConfig)
                 sectionConfig = sectionConfig or {}
                 local section = tab:Section({
