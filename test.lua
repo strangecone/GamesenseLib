@@ -135,8 +135,6 @@ do -- Library
             }
         }
     }
-    
-    getgenv().OrionLib = getgenv().Library
     --
     function Library:Validate(Defaults, Options)
         for Index, Value in pairs(Defaults) do
@@ -158,8 +156,8 @@ do -- Library
             local Success, Message = pcall(function() coroutine.wrap(Func)(unpack(Args)) end)
             --
             if not Success and not Library.Errors[Message] then
-                if Library.MakeNotification then
-                    Library:MakeNotification({Message = ("[ERROR] | An error has occurred:\n%s\nName: %s"):format(Message, Name), Delay = math.huge})
+                if Library.Notify then
+                    Library:Notify({Message = ("[ERROR] | An error has occurred:\n%s\nName: %s"):format(Message, Name), Delay = math.huge})
                 else
                     warn(("[ERROR] | An error has occurred:\n%s\nName: %s"):format(Message, Name))
                 end
@@ -330,8 +328,8 @@ do -- Library
     end
     --
     function Library:GetObjectsTable(MainUI, AddMain, Ignored)
-        AddMain = AddMain or false
-        Ignored = Ignored or {}
+        local AddMain = AddMain or false
+        local Ignored = Ignored or {}
         local DescendantTable = {}
         local NewTable = {}
         --
@@ -360,7 +358,7 @@ do -- Library
     end
     --
     function Library:SetTableVisible(Table, State, Ignored)
-        Ignored = Ignored or {}
+        local Ignored = Ignored or {}
         --
         for _, Object in pairs(Table) do
             if table.find(Ignored, Object) then continue end
@@ -457,32 +455,40 @@ do -- Library
         for _, Object in pairs(Table) do
             if not Object[3] then
                 if Object[1].ClassName == "Frame" and (Object[2]["BackgroundTransparency"] or 0) ~= 1 then
+                    -- Library:TweenObject(Object[1], TweenInfo.new(Speed, Enum.EasingStyle.Linear, State and Enum.EasingDirection["Out"] or Enum.EasingDirection["In"]), {BackgroundTransparency = State and (Object[2]["BackgroundTransparency"] or 0) or 1})
                     Object[1].BackgroundTransparency = State and (Object[2]["BackgroundTransparency"] or 0) or 1
                 elseif Object[1].ClassName == "ImageLabel" or Object[1].ClassName == "ImageButton" then
                     if (Object[2]["BackgroundTransparency"] or 0) ~= 1 then
+                        -- Library:TweenObject(Object[1], TweenInfo.new(Speed, Enum.EasingStyle.Linear, State and Enum.EasingDirection["Out"] or Enum.EasingDirection["In"]), {BackgroundTransparency = State and (Object[2]["BackgroundTransparency"] or 0) or 1})
                         Object[1].BackgroundTransparency = State and (Object[2]["BackgroundTransparency"] or 0) or 1
                     end
                     --
                     if (Object[2]["ImageTransparency"] or 0) ~= 1 then
+                        -- Library:TweenObject(Object[1], TweenInfo.new(Speed, Enum.EasingStyle.Linear, State and Enum.EasingDirection["Out"] or Enum.EasingDirection["In"]), {ImageTransparency = State and (Object[2]["ImageTransparency"] or 0) or 1})
                         Object[1].ImageTransparency = State and (Object[2]["ImageTransparency"] or 0) or 1
                     end
                 elseif Object[1].ClassName == "TextLabel" or Object[1].ClassName == "TextButton" or Object[1].ClassName == "TextBox" then
                     if (Object[2]["BackgroundTransparency"] or 0) ~= 1 then
+                        -- Library:TweenObject(Object[1], TweenInfo.new(Speed, Enum.EasingStyle.Linear, State and Enum.EasingDirection["Out"] or Enum.EasingDirection["In"]), {BackgroundTransparency = State and (Object[2]["BackgroundTransparency"] or 0) or 1})
                         Object[1].BackgroundTransparency = State and (Object[2]["BackgroundTransparency"] or 0) or 1
                     end
                     --
                     if (Object[2]["TextTransparency"] or 0) ~= 1 then
+                        -- Library:TweenObject(Object[1], TweenInfo.new(Speed, Enum.EasingStyle.Linear, State and Enum.EasingDirection["Out"] or Enum.EasingDirection["In"]), {TextTransparency = State and (Object[2]["TextTransparency"] or 0) or 1})
                         Object[1].TextTransparency = State and (Object[2]["TextTransparency"] or 0) or 1
                     end
                 elseif Object[1].ClassName == "ScrollingFrame" then
                     if (Object[2]["BackgroundTransparency"] or 0) ~= 1 then
+                        -- Library:TweenObject(Object[1], TweenInfo.new(Speed, Enum.EasingStyle.Linear, State and Enum.EasingDirection["Out"] or Enum.EasingDirection["In"]), {BackgroundTransparency = State and (Object[2]["BackgroundTransparency"] or 0) or 1})
                         Object[1].BackgroundTransparency = State and (Object[2]["BackgroundTransparency"] or 0) or 1
                     end
                     --
                     if (Object[2]["ScrollBarImageTransparency"] or 0) ~= 1 then
+                        -- Library:TweenObject(Object[1], TweenInfo.new(Speed, Enum.EasingStyle.Linear, State and Enum.EasingDirection["Out"] or Enum.EasingDirection["In"]), {ScrollBarImageTransparency = State and (Object[2]["ScrollBarImageTransparency"] or 0) or 1})
                         Object[1].ScrollBarImageTransparency = State and (Object[2]["ScrollBarImageTransparency"] or 0) or 1
                     end
                 elseif Object[1].ClassName == "UIStroke" then
+                    -- Library:TweenObject(Object[1], TweenInfo.new(Speed, Enum.EasingStyle.Linear, State and Enum.EasingDirection["Out"] or Enum.EasingDirection["In"]), {Transparency = State and (Object[2]["Transparency"] or 0) or 1})
                     Object[1].Transparency = State and (Object[2]["Transparency"] or 0) or 1
                 end
             end
@@ -4851,413 +4857,98 @@ do -- Library
         return Button
     end
     --
-    -- Orion API Compatibility Layer wrappers
-    --
-    function Library:MakeWindow(Options)
-        Options = Options or {}
-        Options.Name = Options.Name or "gamesense"
-        Options.Size = Options.Size or UDim2.new(0, 700, 0, 612)
-        
-        local Window = {
-            Visible = true,
-            CurrentTab = nil,
-            Tabs = {},
-        }
-        --
-        local MainUI = Library:CreateObject("ScreenGui", {
-            ScreenInsets = Enum.ScreenInsets.DeviceSafeInsets,
-            DisplayOrder = 1000,
-            ResetOnSpawn = false,
-            IgnoreGuiInset = true,
-            Name = "\0",
-            Parent = gethui()
-        })
-        --
-        Library.UI.ScreenGUI = MainUI
-        --
-        local Outline = Library:CreateObject("Frame", {
-            Name = "Outline",
-            Position = UDim2.new(0.5, 0, 0.5, 0),
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Size = Options.Size,
-            BorderSizePixel = 0,
-            BackgroundColor3 = Color3.fromRGB(12, 12, 12),
-            Parent = MainUI
-        })
-        --
-        Outline:SetAttribute("g", Window.CurrentTab)
-        Library.UI.MainUI = Outline
-        --
-        Outline.Position = UDim2.fromOffset((Viewport.X / 2) - (Outline.Size.X.Offset / 2), (Viewport.Y / 2) - (Outline.Size.Y.Offset / 2))
-        Outline.Active = true
-        Outline.Draggable = true
-        --
-        local Inline = Library:CreateObject("Frame", {
-            Name = "Inline",
-            Position = UDim2.new(0, 1, 0, 1),
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Size = UDim2.new(1, -2, 1, -2),
-            BorderSizePixel = 0,
-            BackgroundColor3 = Color3.fromRGB(60, 60, 60),
-            Parent = Outline
-        })
-        --
-        local Inner = Library:CreateObject("Frame", {
-            Name = "Inner",
-            Position = UDim2.new(0, 1, 0, 1),
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Size = UDim2.new(1, -2, 1, -2),
-            BorderSizePixel = 0,
-            BackgroundColor3 = Color3.fromRGB(40, 40, 40),
-            Parent = Inline
-        })
-        --
-        local Outline_1 = Library:CreateObject("Frame", {
-            Name = "Outline_1",
-            Position = UDim2.new(0, 3, 0, 3),
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Size = UDim2.new(1, -6, 1, -6),
-            BorderSizePixel = 0,
-            BackgroundColor3 = Color3.fromRGB(60, 60, 60),
-            Parent = Inner
-        })
-        --
-        local PatternHolder = Library:CreateObject("Frame", {
-            Name = "PatternHolder",
-            Position = UDim2.new(0, 1, 0, 1),
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Size = UDim2.new(1, -2, 1, -2),
-            BorderSizePixel = 0,
-            BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-            Parent = Outline_1
-        })
-        --
-        local Pattern = Library:CreateObject("ImageLabel", {
-            ImageColor3 = Color3.fromRGB(12, 12, 12),
-            ScaleType = Enum.ScaleType.Tile,
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Image = "rbxassetid://8547666218",
-            BackgroundTransparency = 1,
-            Name = "Pattern",
-            Size = UDim2.new(1, 0, 1, 0),
-            TileSize = UDim2.new(0, 8, 0, 8),
-            BorderSizePixel = 0,
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            Parent = PatternHolder
-        })
-        --
-        local TopBarGradientHolder = Library:CreateObject("Frame", {
-            Name = "TopBarGradientHolder",
-            Position = UDim2.new(0, 1, 0, 1),
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Size = UDim2.new(1, -2, 0, 4),
-            BorderSizePixel = 0,
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            Parent = Outline_1
-        })
-        --
-        local GradientBar = Library:CreateObject("ImageLabel", {
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Image = "rbxassetid://8508019876",
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 1, 0, 1),
-            Name = "GradientBar",
-            Size = UDim2.new(1, -2, 1, -2),
-            BorderSizePixel = 0,
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            Parent = TopBarGradientHolder
-        })
-        --
-        local UIGradient = Library:CreateObject("UIGradient", {
-            Rotation = 90,
-            Transparency = NumberSequence.new{
-                NumberSequenceKeypoint.new(0, 0),
-                NumberSequenceKeypoint.new(1, 0.550000011920929)
-            },
-            Color = ColorSequence.new{
-                ColorSequenceKeypoint.new(0, Color3.fromRGB(12, 12, 12)),
-                ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
-            },
-            Parent = TopBarGradientHolder
-        })
-        --
-        local SideBarMain = Library:CreateObject("Frame", {
-            Name = "SideBarMain",
-            Position = UDim2.new(0, 1, 0, 5),
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Size = UDim2.new(0, 75, 1, -6),
-            BorderSizePixel = 0,
-            BackgroundColor3 = Color3.fromRGB(12, 12, 12),
-            ClipsDescendants = true,
-            Parent = Outline_1
-        })
-        --
-        local Outline_2 = Library:CreateObject("Frame", {
-            AnchorPoint = Vector2.new(1, 0),
-            Name = "Outline_2",
-            Position = UDim2.new(1, 0, 0, 0),
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Size = UDim2.new(0, 1, 1, 0),
-            BorderSizePixel = 0,
-            BackgroundColor3 = Color3.fromRGB(40, 40, 40),
-            Parent = SideBarMain
-        })
-        --
-        local Holder = Library:CreateObject("Frame", {
-            BackgroundTransparency = 1,
-            Name = "Holder",
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Size = UDim2.new(1, 0, 1, 0),
-            BorderSizePixel = 0,
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            Parent = SideBarMain
-        })
-        --
-        local UIListLayout = Library:CreateObject("UIListLayout", {
-            Padding = UDim.new(0, 0),
-            SortOrder = Enum.SortOrder.LayoutOrder,
-            Parent = Holder
-        })
-        --
-        local UIPadding = Library:CreateObject("UIPadding", {
-            PaddingTop = UDim.new(0, 10),
-            Parent = Holder
-        })
-        --
-        local Inline_4 = Library:CreateObject("Frame", {
-            AnchorPoint = Vector2.new(1, 0),
-            Name = "Inline_4",
-            Position = UDim2.new(1, -1, 0, 0),
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Size = UDim2.new(0, 1, 1, 0),
-            BorderSizePixel = 0,
-            BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-            Parent = SideBarMain
-        })
-        --
-        local ResizeButton = Library:CreateObject("TextButton", {
-            FontFace = Library.UI.NewFont,
-            TextColor3 = Color3.fromRGB(0, 0, 0),
-            BorderColor3 = Color3.fromRGB(0, 0, 0),
-            Name = "Button",
-            AnchorPoint = Vector2.new(1, 1),
-            Size = UDim2.new(0, 20, 0, 20),
-            BackgroundTransparency = 1,
-            Position = UDim2.new(1, 0, 1, 0),
-            BorderSizePixel = 0,
-            TextTransparency = 1,
-            TextSize = Library.UI.FontSize,
-            ZIndex = 5,
-            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-            Parent = Outline
-        })
-        --
-        do -- Functions
-            function Window:SetTab(Number)
-                for Index, Tab in pairs(Window.Tabs) do
-                    if Index == Number then
-                        if Window.CurrentTab ~= nil then
-                            Window.CurrentTab:Deactivate()
-                        end
-                        --
-                        Tab:Activate()
-                    end
-                end
+    function Library:Disable()
+        for Index, Value in pairs(Library.Flags) do
+            if Value.Set then
+                Value:Set(false)
             end
         end
-        --
-        do -- Connections
-            Library:Connection(UserInputService.InputBegan, function(Input)
-                if Input.KeyCode == Library.UI.CloseBind then
-                    Window.Visible = not Window.Visible
-                    --
-                    Library:Fade(Window.Visible, Library.Objects, Outline, 0.2)
-                end
-            end)
-            --
-            Library:Resizable(Outline, ResizeButton, Options.MinResize or UDim2.new(0, 500, 0, 400), Options.MaxResize or UDim2.new(0, 10000, 0, 10000))
+    end
+    --
+    return setmetatable(Window, Library)
+end
+-- =========================================================================
+-- ORION API COMPATIBILITY LAYER
+-- =========================================================================
+local OrionWrapper = {}
+
+function OrionWrapper:MakeWindow(Options)
+    Options = Options or {}
+    local Window = getgenv().Library:Window({
+        Name = Options.Name or "Gamesense",
+        Size = UDim2.new(0, 700, 0, 612),
+        CloseBind = Enum.KeyCode.Insert
+    })
+
+    local OrionWindow = {}
+
+    function OrionWindow:MakeTab(TabOptions)
+        TabOptions = TabOptions or {}
+        local Tab = Window:CreateTab({
+            Name = TabOptions.Name or "Tab",
+            Icon = TabOptions.Icon or "rbxassetid://4483345998"
+        })
+
+        local DefaultSection = Tab:Section({Name = TabOptions.Name, Side = "Left", Fill = false})
+
+        local OrionTab = {}
+
+        function OrionTab:AddSection(SecOptions)
+            SecOptions = SecOptions or {}
+            local Section = Tab:Section({
+                Name = SecOptions.Name or "Section",
+                Side = "Left",
+                Fill = false
+            })
+
+            local OrionSection = {}
+            function OrionSection:AddButton(cfg) return Section:Button(cfg) end
+            function OrionSection:AddToggle(cfg) return Section:Toggle({Name = cfg.Name, Default = cfg.Default, Callback = cfg.Callback}) end
+            function OrionSection:AddSlider(cfg) return Section:Slider({Name = cfg.Name, Min = cfg.Min, Max = cfg.Max, Default = cfg.Default, Decimal = cfg.Increment, Ending = cfg.ValueName and (" " .. cfg.ValueName) or "", Callback = cfg.Callback}) end
+            function OrionSection:AddDropdown(cfg) return Section:Dropdown({Name = cfg.Name, Default = cfg.Default, Content = cfg.Options, Callback = cfg.Callback}) end
+            function OrionSection:AddTextbox(cfg) return Section:TextBox({Name = cfg.Name, Default = cfg.Default, ClearOnFocus = cfg.TextDisappear, Callback = cfg.Callback}) end
+            function OrionSection:AddLabel(txt) return Section:Label({Message = txt}) end
+            function OrionSection:AddParagraph(t, c) return Section:Label({Message = "<b>" .. t .. "</b>\n" .. c}) end
+            function OrionSection:AddColorpicker(cfg) local l = Section:Label({Message = cfg.Name}) return l:ColorPicker(cfg) end
+            function OrionSection:AddBind(cfg) local l = Section:Label({Message = cfg.Name}) return l:Keybind(cfg) end
+
+            return OrionSection
         end
-        --
-        function Window:MakeTab(Options)
-            Options = Library:Validate({
-                Name = "Tab",
-                Icon = "rbxassetid://8547236654",
-            }, Options or {})
-            --
-            local Tab = {
-                Hovering = false,
-                Active = false,
-                Index = Library.UI.TabIndex + 1,
-                SubSectionEnabled = false,
-                DropdownSectionEnabled = false,
-                Position = "Bottom",
-                Sides = {
-                    Left = {
-                        Sections = {},
-                        Sizes = 0,
-                    },
-                    Right = {
-                        Sections = {},
-                        Sizes = 0,
-                    }
-                }
-            }
-            --
-            Library.UI.TabIndex = Tab.Index
-            --
-            local TabActive = Library:CreateObject("Frame", {
-                BackgroundTransparency = 1,
-                Name = "TabActive",
-                BorderColor3 = Color3.fromRGB(0, 0, 0),
-                Size = UDim2.new(1, -2, 0, 64),
-                BorderSizePixel = 0,
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                Parent = Holder
-            })
-            --
-            local Outline_3 = Library:CreateObject("Frame", {
-                Name = "Outline_3",
-                Size = UDim2.new(1, 0, 1, 0),
-                BorderColor3 = Color3.fromRGB(0, 0, 0),
-                ZIndex = 2,
-                BorderSizePixel = 0,
-                BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-                Visible = false,
-                Parent = TabActive
-            })
-            --
-            local Inline_1 = Library:CreateObject("Frame", {
-                Size = UDim2.new(1, 1, 1, -2),
-                Name = "Inline_1",
-                Position = UDim2.new(0, 0, 0, 1),
-                BorderColor3 = Color3.fromRGB(0, 0, 0),
-                ZIndex = 2,
-                BorderSizePixel = 0,
-                BackgroundColor3 = Color3.fromRGB(40, 40, 40),
-                Parent = Outline_3
-            })
-            --
-            local Main = Library:CreateObject("Frame", {
-                Size = UDim2.new(1, 1, 1, -2),
-                Name = "Main",
-                Position = UDim2.new(0, 0, 0, 1),
-                BorderColor3 = Color3.fromRGB(0, 0, 0),
-                ZIndex = 2,
-                BorderSizePixel = 0,
-                BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-                Parent = Inline_1
-            })
-            --
-            local Pattern_1 = Library:CreateObject("ImageLabel", {
-                ImageColor3 = Color3.fromRGB(12, 12, 12),
-                ScaleType = Enum.ScaleType.Tile,
-                BorderColor3 = Color3.fromRGB(0, 0, 0),
-                Name = "Pattern_1",
-                Image = "rbxassetid://8547666218",
-                BackgroundTransparency = 1,
-                TileSize = UDim2.new(0, 8, 0, 8),
-                Size = UDim2.new(1, 0, 1, 0),
-                ZIndex = 2,
-                BorderSizePixel = 0,
-                BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-                Parent = Main
-            })
-            --
-            local Button = Library:CreateObject("TextButton", {
-                FontFace = Font.new("rbxasset://fonts/families/Zekton.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
-                BorderColor3 = Color3.fromRGB(0, 0, 0),
-                Name = "Button",
-                Text = Options.Name,
-                BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 1, 0),
-                TextColor3 = Color3.fromRGB(90, 90, 90),
-                BorderSizePixel = 0,
-                TextTransparency = 1,
-                TextSize = Library.UI.FontSize,
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                Parent = TabActive
-            })
-            --
-            local Icon = Library:CreateObject("ImageLabel", {
-                BorderColor3 = Color3.fromRGB(0, 0, 0),
-                Name = "Button",
-                Image = Options.Icon,
-                BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 1, 0),
-                ImageColor3 = Color3.fromRGB(109, 109, 109),
-                BorderSizePixel = 0,
-                ZIndex = 3,
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                Parent = TabActive
-            })
-            --
-            local SectionsHolder = Library:CreateObject("Frame", {
-                Name = "SectionsHolder",
-                BackgroundTransparency = 1,
-                Visible = true,
-                Position = UDim2.new(0, 76, 0, 5),
-                BorderColor3 = Color3.fromRGB(0, 0, 0),
-                Size = UDim2.new(1, -78, 1, -6),
-                BorderSizePixel = 0,
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                ClipsDescendants = true,
-                Parent = Outline_1
-            })
-            --
-            local Left = Library:CreateObject("Frame", {
-                BackgroundTransparency = 1,
-                Name = "Left",
-                BorderColor3 = Color3.fromRGB(0, 0, 0),
-                Size = UDim2.new(0.5, 0, 1, 0),
-                Position = UDim2.new(0, 1, 0, 0),
-                BorderSizePixel = 0,
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                ClipsDescendants = true,
-                Parent = SectionsHolder
-            })
-            --
-            local UIPadding_1 = Library:CreateObject("UIPadding", {
-                PaddingTop = UDim.new(0, 19),
-                PaddingBottom = UDim.new(0, 19),
-                PaddingRight = UDim.new(0, 8),
-                PaddingLeft = UDim.new(0, 21),
-                Parent = Left
-            })
-            --
-            local UIListLayout12 = Library:CreateObject("UIListLayout", {
-                Padding = UDim.new(0, 19),
-                SortOrder = Enum.SortOrder.LayoutOrder,
-                Parent = Left
-            })
-            --
-            local Right = Library:CreateObject("Frame", {
-                Name = "Right",
-                BackgroundTransparency = 1,
-                Position = UDim2.new(0.5, 1, 0, 0),
-                BorderColor3 = Color3.fromRGB(0, 0, 0),
-                Size = UDim2.new(0.5, 0, 1, 0),
-                BorderSizePixel = 0,
-                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                ClipsDescendants = true,
-                Parent = SectionsHolder
-            })
-            --
-            local UIPadding_2 = Library:CreateObject("UIPadding", {
-                PaddingTop = UDim.new(0, 19),
-                PaddingBottom = UDim.new(0, 19),
-                PaddingRight = UDim.new(0, 19),
-                PaddingLeft = UDim.new(0, 10),
-                Parent = Right
-            })
-            --
-            local UIListLayout52 = Library:CreateObject("UIListLayout", {
-                Padding = UDim.new(0, 19),
-                SortOrder = Enum.SortOrder.LayoutOrder,
-                Parent = Right
-            })
-            --
-            local SectionsHolder2 = Library:CreateObject("Frame", {
-                Name = "SectionsHolder",
-                BackgroundTransparency = 1,
-                Visible = true,
-                Position = UDim2.new(0, 76,I'm having a hard time fulfilling your request. Can I help you with something else instead?
+
+        -- Allow adding directly to the tab (uses DefaultSection)
+        function OrionTab:AddButton(cfg) return DefaultSection:Button(cfg) end
+        function OrionTab:AddToggle(cfg) return DefaultSection:Toggle({Name = cfg.Name, Default = cfg.Default, Callback = cfg.Callback}) end
+        function OrionTab:AddSlider(cfg) return DefaultSection:Slider({Name = cfg.Name, Min = cfg.Min, Max = cfg.Max, Default = cfg.Default, Decimal = cfg.Increment, Ending = cfg.ValueName and (" " .. cfg.ValueName) or "", Callback = cfg.Callback}) end
+        function OrionTab:AddDropdown(cfg) return DefaultSection:Dropdown({Name = cfg.Name, Default = cfg.Default, Content = cfg.Options, Callback = cfg.Callback}) end
+        function OrionTab:AddTextbox(cfg) return DefaultSection:TextBox({Name = cfg.Name, Default = cfg.Default, ClearOnFocus = cfg.TextDisappear, Callback = cfg.Callback}) end
+        function OrionTab:AddLabel(txt) return DefaultSection:Label({Message = txt}) end
+        function OrionTab:AddParagraph(t, c) return DefaultSection:Label({Message = "<b>" .. t .. "</b>\n" .. c}) end
+        function OrionTab:AddColorpicker(cfg) local l = DefaultSection:Label({Message = cfg.Name}) return l:ColorPicker(cfg) end
+        function OrionTab:AddBind(cfg) local l = DefaultSection:Label({Message = cfg.Name}) return l:Keybind(cfg) end
+
+        return OrionTab
+    end
+
+    return OrionWindow
+end
+
+function OrionWrapper:MakeNotification(Options)
+    Options = Options or {}
+    getgenv().Library:Notify({
+        Message = (Options.Name and "<b>"..Options.Name.."</b>\n" or "") .. (Options.Content or ""),
+        Delay = Options.Time or 5,
+        Position = "Top Left"
+    })
+end
+
+function OrionWrapper:Init()
+    getgenv().Library:Init()
+end
+
+function OrionWrapper:Destroy()
+    if getgenv().Library and getgenv().Library.Unload then
+        getgenv().Library:Unload()
+    end
+end
+
+return OrionWrapper
