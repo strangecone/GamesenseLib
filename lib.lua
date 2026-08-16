@@ -1,5 +1,5 @@
--- GameSense Lib V13 (True Skeet Aesthetics)
--- Perfect Double Borders, Anchor-Fixed Watermarks, Custom Watermark Text.
+-- GameSense Lib V14 (The Final Masterpiece)
+-- True Skeet Visuals, Draggable Constraints, Functional Config Listbox, Rainbow Colors.
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -9,6 +9,7 @@ local HttpService = game:GetService("HttpService")
 local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
+-- Anti-Duplication
 pcall(function()
 	if getgenv().GameSense_UI then getgenv().GameSense_UI:Destroy() end
 	if getgenv().GameSense_Input then getgenv().GameSense_Input:Disconnect() end
@@ -25,13 +26,13 @@ local GameSenseLib = {
 	WatermarkText = "gamesense",
 	AutoSaveEnabled = false,
 	Theme = {
-		Background = Color3.fromRGB(17, 17, 17),    -- Deep Menu Background
-		GroupboxBg = Color3.fromRGB(23, 23, 23),    -- Slightly Lighter Groupbox
-		Outline1 = Color3.fromRGB(0, 0, 0),         -- Outer Black Border
-		Outline2 = Color3.fromRGB(45, 45, 45),      -- Inner Grey Border
-		Accent = Color3.fromRGB(149, 194, 43),      -- Skeet Green
+		Background = Color3.fromRGB(17, 17, 17),
+		GroupboxBg = Color3.fromRGB(23, 23, 23),
+		Outline1 = Color3.fromRGB(0, 0, 0),
+		Outline2 = Color3.fromRGB(45, 45, 45),
+		Accent = Color3.fromRGB(149, 194, 43),
 		Text = Color3.fromRGB(200, 200, 200),
-		DarkText = Color3.fromRGB(130, 130, 130),
+		DarkText = Color3.fromRGB(100, 100, 100),
 		Font = Enum.Font.Code
 	}
 }
@@ -41,10 +42,13 @@ local isfolder = isfolder or function() return false end
 local isfile = isfile or function() return false end
 local writefile = writefile or function() end
 local readfile = readfile or function() return "{}" end
+local listfiles = listfiles or function() return {} end
 
-local function MakeDraggable(topbar, object)
+-- Dragging only works if a condition (like menu being open) is met
+local function MakeDraggable(topbar, object, condition)
 	local Dragging, DragInput, DragStart, StartPos
 	topbar.InputBegan:Connect(function(input)
+		if condition and not condition() then return end
 		if input.UserInputType == Enum.UserInputType.MouseButton1 then
 			Dragging = true DragStart = input.Position StartPos = object.Position
 			input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then Dragging = false end end)
@@ -68,10 +72,7 @@ function GameSenseLib:UpdateAccent(color)
 	end
 end
 
-function GameSenseLib:SetWatermarkVisibility(state) if self.Watermark then self.Watermark.Visible = state end end
-function GameSenseLib:SetKeybindsVisibility(state) if self.KeybindsFrame then self.KeybindsFrame.Visible = state end end
-
--- Helper to create Skeet's iconic double-border frames
+-- Skeet Double Border Generator
 local function CreateDoubleBorder(parent, size, pos, bgColor)
 	local Outer = Instance.new("Frame", parent)
 	Outer.Size = size
@@ -97,7 +98,6 @@ end
 function GameSenseLib:MakeWindow(options)
 	options = options or {}
 	self.ConfigFolder = options.ConfigFolder or "GameSense"
-	self.AutoSaveEnabled = options.SaveConfig or false
 	self.WatermarkText = options.WatermarkText or "gamesense"
 	
 	if not isfolder(self.ConfigFolder) then makefolder(self.ConfigFolder) end
@@ -113,91 +113,22 @@ function GameSenseLib:MakeWindow(options)
 	self.Gui = ScreenGui
 	getgenv().GameSense_UI = ScreenGui 
 
-	-- NOTIFICATIONS
-	local NotifContainer = Instance.new("Frame", ScreenGui)
-	NotifContainer.Size = UDim2.new(0, 250, 1, -20)
-	NotifContainer.Position = UDim2.new(1, -260, 0, 10)
-	NotifContainer.BackgroundTransparency = 1
-	local NotifLayout = Instance.new("UIListLayout", NotifContainer)
-	NotifLayout.SortOrder = Enum.SortOrder.LayoutOrder
-	NotifLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
-	NotifLayout.Padding = UDim.new(0, 10)
+	local MainOuter, MainInnerBg = CreateDoubleBorder(ScreenGui, UDim2.new(0, 660, 0, 560), UDim2.new(0.5, -330, 0.5, -280), self.Theme.Background)
+	MainOuter.Visible = true
+	MakeDraggable(MainOuter, MainOuter, function() return true end)
+	local uiScale = Instance.new("UIScale", MainOuter)
 
-	function GameSenseLib:MakeNotification(opt)
-		local title = opt.Name or "Notification"
-		local content = opt.Content or ""
-		local time = opt.Time or 5
-
-		local Outer, MainBg = CreateDoubleBorder(NotifContainer, UDim2.new(1, 0, 0, 50), UDim2.new(1, 300, 0, 0), self.Theme.Background)
-		Outer.BackgroundTransparency = 1
-		MainBg.BackgroundTransparency = 1
-		MainBg.Parent.BackgroundTransparency = 1
-		
-		local NGrad = Instance.new("Frame", MainBg)
-		NGrad.Size = UDim2.new(1, 0, 0, 2)
-		NGrad.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-		NGrad.BorderSizePixel = 0
-		NGrad.BackgroundTransparency = 1
-		local UIG = Instance.new("UIGradient", NGrad)
-		UIG.Color = ColorSequence.new({
-			ColorSequenceKeypoint.new(0, Color3.fromRGB(59, 175, 222)), ColorSequenceKeypoint.new(0.3, Color3.fromRGB(202, 105, 235)),
-			ColorSequenceKeypoint.new(0.6, Color3.fromRGB(235, 198, 105)), ColorSequenceKeypoint.new(1, Color3.fromRGB(168, 235, 105))
-		})
-
-		local NTitle = Instance.new("TextLabel", MainBg)
-		NTitle.Size = UDim2.new(1, -10, 0, 15)
-		NTitle.Position = UDim2.new(0, 5, 0, 5)
-		NTitle.BackgroundTransparency = 1
-		NTitle.Text = title
-		NTitle.TextColor3 = self.Theme.Text
-		NTitle.Font = self.Theme.Font
-		NTitle.TextSize = 13
-		NTitle.TextXAlignment = Enum.TextXAlignment.Left
-		NTitle.TextTransparency = 1
-
-		local NContent = Instance.new("TextLabel", MainBg)
-		NContent.Size = UDim2.new(1, -10, 1, -25)
-		NContent.Position = UDim2.new(0, 5, 0, 20)
-		NContent.BackgroundTransparency = 1
-		NContent.Text = content
-		NContent.TextColor3 = self.Theme.DarkText
-		NContent.Font = self.Theme.Font
-		NContent.TextSize = 12
-		NContent.TextXAlignment = Enum.TextXAlignment.Left
-		NContent.TextYAlignment = Enum.TextYAlignment.Top
-		NContent.TextWrapped = true
-		NContent.TextTransparency = 1
-		
-		local TI = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out)
-		TweenService:Create(Outer, TI, {Position = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 0}):Play()
-		TweenService:Create(MainBg, TI, {BackgroundTransparency = 0}):Play()
-		TweenService:Create(MainBg.Parent, TI, {BackgroundTransparency = 0}):Play()
-		TweenService:Create(NGrad, TI, {BackgroundTransparency = 0}):Play()
-		TweenService:Create(NTitle, TI, {TextTransparency = 0}):Play()
-		TweenService:Create(NContent, TI, {TextTransparency = 0}):Play()
-		
-		task.delay(time, function()
-			local TO = TweenInfo.new(0.4, Enum.EasingStyle.Exponential, Enum.EasingDirection.In)
-			TweenService:Create(Outer, TO, {Position = UDim2.new(1, 300, 0, 0), BackgroundTransparency = 1}):Play()
-			TweenService:Create(MainBg, TO, {BackgroundTransparency = 1}):Play()
-			TweenService:Create(MainBg.Parent, TO, {BackgroundTransparency = 1}):Play()
-			TweenService:Create(NGrad, TO, {BackgroundTransparency = 1}):Play()
-			TweenService:Create(NTitle, TO, {TextTransparency = 1}):Play()
-			local out = TweenService:Create(NContent, TO, {TextTransparency = 1})
-			out:Play()
-			out.Completed:Connect(function() Outer:Destroy() end)
-		end)
-	end
-
-	local PopupContainer = Instance.new("Frame", ScreenGui)
+	-- POPUPS
+	local PopupContainer = Instance.new("Frame", MainOuter)
 	PopupContainer.Size = UDim2.new(1, 0, 1, 0)
 	PopupContainer.BackgroundTransparency = 1
-	PopupContainer.ZIndex = 100
+	PopupContainer.ZIndex = 1000
 
 	local PopupCatcher = Instance.new("TextButton", PopupContainer)
 	PopupCatcher.Size = UDim2.new(1, 0, 1, 0)
 	PopupCatcher.BackgroundTransparency = 1
 	PopupCatcher.Text = ""
+	PopupCatcher.ZIndex = 999
 	PopupCatcher.Visible = false
 
 	local function ClosePopups()
@@ -206,22 +137,16 @@ function GameSenseLib:MakeWindow(options)
 	end
 	PopupCatcher.MouseButton1Click:Connect(ClosePopups)
 
-	-- FIXED WATERMARK (Anchored to Right, Auto-Sizing)
-	local WMOuter, WMInner = CreateDoubleBorder(ScreenGui, UDim2.new(0, 0, 0, 20), UDim2.new(1, -10, 0, 10), self.Theme.Background)
+	-- WATERMARK
+	local WMOuter, WMInner = CreateDoubleBorder(ScreenGui, UDim2.new(0, 200, 0, 20), UDim2.new(1, -10, 0, 10), self.Theme.Background)
 	WMOuter.AnchorPoint = Vector2.new(1, 0)
-	WMOuter.AutomaticSize = Enum.AutomaticSize.X
-	WMInner.AutomaticSize = Enum.AutomaticSize.X
 	WMOuter.Visible = false
 	self.Watermark = WMOuter
-
-	local WMPad = Instance.new("UIPadding", WMInner)
-	WMPad.PaddingLeft = UDim.new(0, 6)
-	WMPad.PaddingRight = UDim.new(0, 6)
+	MakeDraggable(WMOuter, WMOuter, function() return MainOuter.Visible end)
 
 	local WMGradient = Instance.new("Frame", WMInner)
-	WMGradient.Size = UDim2.new(1, 12, 0, 1) -- Overshoots padding
-	WMGradient.Position = UDim2.new(0, -6, 0, 0)
-	WMGradient.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+	WMGradient.Size = UDim2.new(1, 0, 0, 2)
+	WMGradient.BackgroundColor3 = Color3.new(1,1,1)
 	WMGradient.BorderSizePixel = 0
 	local uiGrad = Instance.new("UIGradient", WMGradient)
 	uiGrad.Color = ColorSequence.new({
@@ -230,24 +155,22 @@ function GameSenseLib:MakeWindow(options)
 	})
 
 	local WMText = Instance.new("TextLabel", WMInner)
-	WMText.Size = UDim2.new(0, 0, 1, 0)
-	WMText.AutomaticSize = Enum.AutomaticSize.X
+	WMText.Size = UDim2.new(1, 0, 1, 0)
 	WMText.BackgroundTransparency = 1
 	WMText.TextColor3 = self.Theme.Text
 	WMText.Font = self.Theme.Font
 	WMText.TextSize = 12
 	WMText.TextXAlignment = Enum.TextXAlignment.Center
 
-	-- KEYBINDS FRAME (Skeet Perfect)
+	-- KEYBINDS FRAME
 	local KBOuter, KBInner = CreateDoubleBorder(ScreenGui, UDim2.new(0, 180, 0, 20), UDim2.new(0, 10, 0.4, 0), self.Theme.Background)
 	KBOuter.Visible = false
 	self.KeybindsFrame = KBOuter
-	MakeDraggable(KBOuter, KBOuter)
+	MakeDraggable(KBOuter, KBOuter, function() return MainOuter.Visible end)
 	
 	local KBGrad = WMGradient:Clone()
 	KBGrad.Parent = KBInner
-	KBGrad.Size = UDim2.new(1, 0, 0, 1)
-	KBGrad.Position = UDim2.new(0, 0, 0, 0)
+	KBGrad.Size = UDim2.new(1, 0, 0, 2)
 	
 	local KBTitle = Instance.new("TextLabel", KBInner)
 	KBTitle.Size = UDim2.new(1, 0, 0, 18)
@@ -272,7 +195,9 @@ function GameSenseLib:MakeWindow(options)
 
 	RunService.RenderStepped:Connect(function()
 		if WMOuter.Visible then 
-			WMText.Text = string.format("%s | %s | %s", GameSenseLib.WatermarkText, LocalPlayer.Name, os.date("%H:%M:%S"))
+			WMText.Text = string.format(" %s | %s | %s ", self.WatermarkText, LocalPlayer.Name, os.date("%H:%M:%S"))
+			local bounds = WMText.TextBounds.X + 16
+			WMOuter.Size = UDim2.new(0, bounds, 0, 20)
 		end
 		if KBOuter.Visible then
 			local count = 0
@@ -301,10 +226,6 @@ function GameSenseLib:MakeWindow(options)
 		end
 	end)
 
-	local MainOuter, MainInnerBg = CreateDoubleBorder(ScreenGui, UDim2.new(0, 600, 0, 450), UDim2.new(0.5, -300, 0.5, -225), self.Theme.Background)
-	MakeDraggable(MainOuter, MainOuter)
-	local uiScale = Instance.new("UIScale", MainOuter)
-
 	local TopBar = Instance.new("Frame", MainInnerBg)
 	TopBar.Size = UDim2.new(1, 0, 0, 2)
 	TopBar.BackgroundColor3 = Color3.fromRGB(255,255,255)
@@ -326,10 +247,9 @@ function GameSenseLib:MakeWindow(options)
 	ContentContainer.BackgroundTransparency = 1
 	ContentContainer.ClipsDescendants = true 
 
-	-- MENU TOGGLE FIX (RightShift or custom bind)
 	getgenv().GameSense_Input = UserInputService.InputBegan:Connect(function(input, gpe)
 		if gpe then return end
-		if input.KeyCode == GameSenseLib.MenuKey or input.KeyCode == Enum.KeyCode.RightShift then
+		if input.KeyCode == GameSenseLib.MenuKey then
 			MainOuter.Visible = not MainOuter.Visible
 			ClosePopups()
 		end
@@ -352,7 +272,7 @@ function GameSenseLib:MakeWindow(options)
 		IconImg.Position = UDim2.new(0.5, -15, 0.5, -15)
 		IconImg.BackgroundTransparency = 1
 		IconImg.Image = tabOptions.Icon or ""
-		IconImg.ImageColor3 = GameSenseLib.Theme.DarkText
+		IconImg.ImageColor3 = GameSenseLib.Theme.DarkText -- Dim inactive color
 
 		local TabContent = Instance.new("Frame", ContentContainer)
 		TabContent.Size = UDim2.new(1, 0, 1, 0)
@@ -379,19 +299,22 @@ function GameSenseLib:MakeWindow(options)
 		local RPad = Instance.new("UIPadding", RightCol)
 		RPad.PaddingTop = UDim.new(0, 10) RPad.PaddingBottom = UDim.new(0, 10)
 
+		LeftCol:GetPropertyChangedSignal("CanvasPosition"):Connect(ClosePopups)
+		RightCol:GetPropertyChangedSignal("CanvasPosition"):Connect(ClosePopups)
+
 		TabBtn.MouseButton1Click:Connect(function()
 			for _, tab in pairs(WindowObj.Tabs) do
 				tab.Content.Visible = false
 				tab.Icon.ImageColor3 = GameSenseLib.Theme.DarkText
 			end
 			TabContent.Visible = true
-			IconImg.ImageColor3 = GameSenseLib.Theme.Accent
+			IconImg.ImageColor3 = Color3.fromRGB(220, 220, 220) -- Bright active color
 			ClosePopups()
 		end)
 
 		if WindowObj.TabCount == 1 then
 			TabContent.Visible = true
-			IconImg.ImageColor3 = GameSenseLib.Theme.Accent
+			IconImg.ImageColor3 = Color3.fromRGB(220, 220, 220)
 		end
 
 		table.insert(WindowObj.Tabs, {Content = TabContent, Icon = IconImg})
@@ -415,13 +338,12 @@ function GameSenseLib:MakeWindow(options)
 			local side = secOptions.Side or "Left"
 			local ParentCol = (side == "Right") and RightCol or LeftCol
 
-			-- PERFECT SKEET GROUPBOX
 			local GbOuter, GbInner = CreateDoubleBorder(ParentCol, UDim2.new(1, 0, 0, 20), UDim2.new(0,0,0,0), GameSenseLib.Theme.GroupboxBg)
 
 			local TitleLabel = Instance.new("TextLabel", GbOuter)
 			TitleLabel.Position = UDim2.new(0, 15, 0, -6)
 			TitleLabel.Size = UDim2.new(0, 0, 0, 12)
-			TitleLabel.BackgroundColor3 = GameSenseLib.Theme.Background -- Matches outer background to "cut" the line!
+			TitleLabel.BackgroundColor3 = GameSenseLib.Theme.Background 
 			TitleLabel.BorderSizePixel = 0
 			TitleLabel.Text = "  " .. (secOptions.Name or "Section") .. "  "
 			TitleLabel.TextColor3 = GameSenseLib.Theme.Text
@@ -475,7 +397,6 @@ function GameSenseLib:MakeWindow(options)
 						GameSenseLib.Flags[opt.Flag].Value = state 
 					end
 					if opt.Callback then pcall(opt.Callback, state) end
-					if opt.Save and GameSenseLib.AutoSaveEnabled then GameSenseLib:SaveConfig("auto_config", true) end
 				end
 				Frame.MouseButton1Click:Connect(function() Set(not state) end)
 				if opt.Flag then GameSenseLib.Elements[opt.Flag] = {Set = Set} end
@@ -526,7 +447,6 @@ function GameSenseLib:MakeWindow(options)
 						GameSenseLib.Flags[opt.Flag].Value = val 
 					end
 					if opt.Callback then pcall(opt.Callback, val) end
-					if opt.Save and GameSenseLib.AutoSaveEnabled then GameSenseLib:SaveConfig("auto_config", true) end
 				end
 
 				local dragging = false
@@ -563,7 +483,7 @@ function GameSenseLib:MakeWindow(options)
 				MainBtn.Size = UDim2.new(1, 0, 1, 0)
 				MainBtn.BackgroundTransparency = 1
 				MainBtn.Text = " " .. tostring(selected)
-				MainBtn.TextColor3 = GameSenseLib.Theme.DarkText
+				MainBtn.TextColor3 = GameSenseLib.Theme.Text
 				MainBtn.Font = GameSenseLib.Theme.Font
 				MainBtn.TextSize = 12
 				MainBtn.TextXAlignment = Enum.TextXAlignment.Left
@@ -576,7 +496,6 @@ function GameSenseLib:MakeWindow(options)
 						GameSenseLib.Flags[opt.Flag].Value = val 
 					end
 					if opt.Callback then pcall(opt.Callback, val) end
-					if opt.Save and GameSenseLib.AutoSaveEnabled then GameSenseLib:SaveConfig("auto_config", true) end
 				end
 
 				local function Refresh(newList) opt.Options = newList or {} end
@@ -585,14 +504,16 @@ function GameSenseLib:MakeWindow(options)
 					ClosePopups()
 					PopupCatcher.Visible = true
 
-					local DropOut, DropIn = CreateDoubleBorder(PopupContainer, UDim2.new(0, MainOut.AbsoluteSize.X, 0, #(opt.Options or {}) * 16), UDim2.new(0, MainOut.AbsolutePosition.X, 0, MainOut.AbsolutePosition.Y + 18), GameSenseLib.Theme.Outline2)
+					local relX = (MainOut.AbsolutePosition.X - MainOuter.AbsolutePosition.X) / uiScale.Scale
+					local relY = (MainOut.AbsolutePosition.Y - MainOuter.AbsolutePosition.Y) / uiScale.Scale
+
+					local DropOut, DropIn = CreateDoubleBorder(PopupContainer, UDim2.new(0, MainOut.AbsoluteSize.X / uiScale.Scale, 0, #(opt.Options or {}) * 16), UDim2.new(0, relX, 0, relY + 20), GameSenseLib.Theme.Outline2)
 					local DropLayout = Instance.new("UIListLayout", DropIn)
 
 					for _, item in ipairs(opt.Options or {}) do
 						local Btn = Instance.new("TextButton", DropIn)
 						Btn.Size = UDim2.new(1, 0, 0, 16)
-						Btn.BackgroundColor3 = GameSenseLib.Theme.Outline2
-						Btn.BorderSizePixel = 0
+						Btn.BackgroundTransparency = 1
 						Btn.Text = " " .. tostring(item)
 						Btn.TextColor3 = GameSenseLib.Theme.Text
 						Btn.Font = GameSenseLib.Theme.Font
@@ -633,7 +554,6 @@ function GameSenseLib:MakeWindow(options)
 				Btn.Font = GameSenseLib.Theme.Font
 				Btn.TextSize = 11
 				
-				-- KEYBINDS LIST UI
 				local KBFrame = Instance.new("Frame", KBContainer)
 				KBFrame.Size = UDim2.new(1, 0, 0, 16)
 				KBFrame.BackgroundTransparency = 1
@@ -669,7 +589,6 @@ function GameSenseLib:MakeWindow(options)
 						if not GameSenseLib.Flags[opt.Flag] then GameSenseLib.Flags[opt.Flag] = {} end
 						GameSenseLib.Flags[opt.Flag].Value = newKey 
 					end
-					if opt.Save and GameSenseLib.AutoSaveEnabled then GameSenseLib:SaveConfig("auto_config", true) end
 				end
 
 				local listening = false
@@ -677,15 +596,17 @@ function GameSenseLib:MakeWindow(options)
 					ClosePopups()
 					PopupCatcher.Visible = true
 
+					local relX = (BtnOut.AbsolutePosition.X - MainOuter.AbsolutePosition.X) / uiScale.Scale
+					local relY = (BtnOut.AbsolutePosition.Y - MainOuter.AbsolutePosition.Y) / uiScale.Scale
+
 					local Modes = {"Always", "Hold", "Toggle"}
-					local DropOut, DropIn = CreateDoubleBorder(PopupContainer, UDim2.new(0, 60, 0, #Modes * 16), UDim2.new(0, BtnOut.AbsolutePosition.X, 0, BtnOut.AbsolutePosition.Y + 18), GameSenseLib.Theme.Outline2)
+					local DropOut, DropIn = CreateDoubleBorder(PopupContainer, UDim2.new(0, 60, 0, #Modes * 16), UDim2.new(0, relX, 0, relY + 18), GameSenseLib.Theme.Outline2)
 					Instance.new("UIListLayout", DropIn)
 
 					for _, m in ipairs(Modes) do
 						local MBtn = Instance.new("TextButton", DropIn)
 						MBtn.Size = UDim2.new(1, 0, 0, 16)
-						MBtn.BackgroundColor3 = GameSenseLib.Theme.Outline2
-						MBtn.BorderSizePixel = 0
+						MBtn.BackgroundTransparency = 1
 						MBtn.Text = (bindData.Mode == m and "> " or "  ") .. m
 						MBtn.TextColor3 = bindData.Mode == m and GameSenseLib.Theme.Accent or GameSenseLib.Theme.Text
 						if bindData.Mode == m then GameSenseLib.AccentObjects[MBtn] = "TextColor3" end
@@ -745,20 +666,42 @@ function GameSenseLib:MakeWindow(options)
 						GameSenseLib.Flags[opt.Flag].Value = {h, s, v} 
 					end
 					if opt.Callback then pcall(opt.Callback, c) end
-					if opt.Save and GameSenseLib.AutoSaveEnabled then GameSenseLib:SaveConfig("auto_config", true) end
+				end
+
+				local rainbow = false
+				local rbConn = nil
+				local activeSVMap = nil
+
+				local function ToggleRainbow(state)
+					rainbow = state
+					if rainbow then
+						if not rbConn then
+							rbConn = RunService.RenderStepped:Connect(function()
+								h = (tick() % 5) / 5
+								Set({h,s,v})
+								if activeSVMap then activeSVMap.BackgroundColor3 = Color3.fromHSV(h, 1, 1) end
+							end)
+						end
+					else
+						if rbConn then rbConn:Disconnect(); rbConn = nil end
+					end
 				end
 
 				Btn.MouseButton1Click:Connect(function()
 					ClosePopups()
 					PopupCatcher.Visible = true
 
-					local PickOut, PickIn = CreateDoubleBorder(PopupContainer, UDim2.new(0, 150, 0, 150), UDim2.new(0, BtnOut.AbsolutePosition.X - 125, 0, BtnOut.AbsolutePosition.Y + 15), GameSenseLib.Theme.GroupboxBg)
+					local relX = (BtnOut.AbsolutePosition.X - MainOuter.AbsolutePosition.X) / uiScale.Scale
+					local relY = (BtnOut.AbsolutePosition.Y - MainOuter.AbsolutePosition.Y) / uiScale.Scale
+
+					local PickOut, PickIn = CreateDoubleBorder(PopupContainer, UDim2.new(0, 150, 0, 170), UDim2.new(0, relX - 125, 0, relY + 15), GameSenseLib.Theme.GroupboxBg)
 
 					local SVOut, SVIn = CreateDoubleBorder(PickIn, UDim2.new(0, 130, 0, 120), UDim2.new(0, 8, 0, 8), Color3.fromHSV(h, 1, 1))
 					local SVMap = Instance.new("TextButton", SVIn)
 					SVMap.Size = UDim2.new(1, 0, 1, 0)
 					SVMap.BackgroundTransparency = 1
 					SVMap.Text = ""
+					activeSVMap = SVIn
 
 					local WGrad = Instance.new("UIGradient", Instance.new("Frame", SVMap))
 					WGrad.Parent.Size = UDim2.new(1,0,1,0) WGrad.Parent.BackgroundColor3 = Color3.new(1,1,1) WGrad.Parent.BorderSizePixel = 0 
@@ -780,14 +723,31 @@ function GameSenseLib:MakeWindow(options)
 						ColorSequenceKeypoint.new(0.66, Color3.fromRGB(0, 0, 255)), ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 0, 0))
 					})
 
+					local RbToggleOut, RbToggleIn = CreateDoubleBorder(PickIn, UDim2.new(0, 130, 0, 14), UDim2.new(0, 8, 0, 148), GameSenseLib.Theme.GroupboxBg)
+					local RbBtn = Instance.new("TextButton", RbToggleIn)
+					RbBtn.Size = UDim2.new(1, 0, 1, 0)
+					RbBtn.BackgroundTransparency = 1
+					RbBtn.Text = rainbow and "Rainbow: ON" or "Rainbow: OFF"
+					RbBtn.TextColor3 = rainbow and GameSenseLib.Theme.Accent or GameSenseLib.Theme.Text
+					RbBtn.Font = GameSenseLib.Theme.Font
+					RbBtn.TextSize = 11
+					
+					RbBtn.MouseButton1Click:Connect(function()
+						rainbow = not rainbow
+						RbBtn.Text = rainbow and "Rainbow: ON" or "Rainbow: OFF"
+						RbBtn.TextColor3 = rainbow and GameSenseLib.Theme.Accent or GameSenseLib.Theme.Text
+						ToggleRainbow(rainbow)
+					end)
+
 					local draggingSV, draggingH = false, false
 					local function UpdateSV(input)
-						s = math.clamp((input.Position.X - SVMap.AbsolutePosition.X) / SVMap.AbsoluteSize.X, 0, 1)
-						v = 1 - math.clamp((input.Position.Y - SVMap.AbsolutePosition.Y) / SVMap.AbsoluteSize.Y, 0, 1)
+						s = math.clamp((input.Position.X - SVOut.AbsolutePosition.X) / SVOut.AbsoluteSize.X, 0, 1)
+						v = 1 - math.clamp((input.Position.Y - SVOut.AbsolutePosition.Y) / SVOut.AbsoluteSize.Y, 0, 1)
 						Set({h,s,v})
 					end
 					local function UpdateH(input)
-						h = math.clamp((input.Position.X - HueMap.AbsolutePosition.X) / HueMap.AbsoluteSize.X, 0, 1)
+						if rainbow then ToggleRainbow(false); RbBtn.Text = "Rainbow: OFF"; RbBtn.TextColor3 = GameSenseLib.Theme.Text end
+						h = math.clamp((input.Position.X - HueOut.AbsolutePosition.X) / HueOut.AbsoluteSize.X, 0, 1)
 						SVIn.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
 						Set({h,s,v})
 					end
@@ -837,7 +797,6 @@ function GameSenseLib:MakeWindow(options)
 						GameSenseLib.Flags[opt.Flag].Value = newVal 
 					end
 					if opt.Callback then pcall(opt.Callback, newVal) end
-					if opt.Save and GameSenseLib.AutoSaveEnabled then GameSenseLib:SaveConfig("auto_config", true) end
 				end
 
 				Box.FocusLost:Connect(function()
@@ -862,21 +821,83 @@ function GameSenseLib:MakeWindow(options)
 				Btn.TextSize = 12
 				Btn.MouseButton1Click:Connect(function() if opt.Callback then pcall(opt.Callback) end end)
 			end
+			
+			function SectionObj:AddListbox(opt)
+				local ListOut, ListIn = CreateDoubleBorder(ItemContainer, UDim2.new(1, 0, 0, opt.Height or 150), UDim2.new(0,0,0,0), GameSenseLib.Theme.MenuBg)
+				local Scroll = Instance.new("ScrollingFrame", ListIn)
+				Scroll.Size = UDim2.new(1, 0, 1, 0)
+				Scroll.BackgroundTransparency = 1
+				Scroll.ScrollBarThickness = 2
+				local ListLayout = Instance.new("UIListLayout", Scroll)
+
+				local selected = ""
+				local buttons = {}
+
+				local function Refresh(newList)
+					for _, b in pairs(buttons) do b:Destroy() end
+					buttons = {}
+					for i, v in ipairs(newList) do
+						local Btn = Instance.new("TextButton", Scroll)
+						Btn.Size = UDim2.new(1, 0, 0, 16)
+						Btn.BackgroundTransparency = 1
+						Btn.Text = "  " .. tostring(v)
+						Btn.TextColor3 = GameSenseLib.Theme.Text
+						Btn.TextXAlignment = Enum.TextXAlignment.Left
+						Btn.Font = GameSenseLib.Theme.Font
+						Btn.TextSize = 12
+
+						Btn.MouseButton1Click:Connect(function()
+							selected = v
+							for _, b in pairs(buttons) do 
+								b.TextColor3 = GameSenseLib.Theme.Text 
+								GameSenseLib.AccentObjects[b] = nil 
+							end
+							Btn.TextColor3 = GameSenseLib.Theme.Accent
+							GameSenseLib.AccentObjects[Btn] = "TextColor3"
+							if opt.Callback then pcall(opt.Callback, v) end
+						end)
+						table.insert(buttons, Btn)
+					end
+					Scroll.CanvasSize = UDim2.new(0, 0, 0, #newList * 16)
+				end
+
+				Refresh(opt.Options or {})
+				return { Refresh = Refresh, GetSelected = function() return selected end }
+			end
 
 			return SectionObj
 		end
 		return TabObj
 	end
 
-	-- BUILT-IN SETTINGS/CONFIG TAB
+	-- BUILT-IN SETTINGS & CONFIG TAB
 	local SettingsTab = WindowObj:MakeTab({ Name = "Settings", Icon = "rbxassetid://7734053495", IsSettingsTab = true })
-	local ConfigListbox = SettingsTab:AddSection({ Name = "Configs", Side = "Left" })
+	local ConfigListboxSec = SettingsTab:AddSection({ Name = "Configs", Side = "Left" })
 	local MainSettings = SettingsTab:AddSection({ Name = "Main", Side = "Right" })
 
-	local ConfigName = "default"
-	ConfigListbox:AddTextbox({ Name = "Config Name", Default = "default", Callback = function(v) ConfigName = v end })
-	ConfigListbox:AddButton({ Name = "Load", Callback = function() GameSenseLib:LoadConfig(ConfigName) end })
-	ConfigListbox:AddButton({ Name = "Save", Callback = function() GameSenseLib:SaveConfig(ConfigName, false) end })
+	local SelectedConfig = "default"
+	
+	local function GetConfigs()
+		local files = listfiles(GameSenseLib.ConfigFolder) or {}
+		local valid = {}
+		for _, f in ipairs(files) do
+			local name = f:match("([^/\\]+)%.json$")
+			if name then table.insert(valid, name) end
+		end
+		return valid
+	end
+
+	local CfgBox = ConfigListboxSec:AddListbox({
+		Options = GetConfigs(),
+		Height = 160,
+		Callback = function(val) SelectedConfig = val end
+	})
+
+	local CfgInput = ConfigListboxSec:AddTextbox({ Name = "Type config name...", Default = "", TextDisappear = false, Callback = function(v) SelectedConfig = v end })
+	
+	ConfigListboxSec:AddButton({ Name = "Load", Callback = function() GameSenseLib:LoadConfig(SelectedConfig) end })
+	ConfigListboxSec:AddButton({ Name = "Save/Update", Callback = function() GameSenseLib:SaveConfig(SelectedConfig, false); CfgBox:Refresh(GetConfigs()) end })
+	ConfigListboxSec:AddButton({ Name = "Refresh", Callback = function() CfgBox:Refresh(GetConfigs()) end })
 	
 	MainSettings:AddBind({ Name = "Menu Bind", Default = Enum.KeyCode.Insert, OnKeyChange = function(key) GameSenseLib.MenuKey = key end })
 	MainSettings:AddColorpicker({ 
@@ -897,24 +918,29 @@ function GameSenseLib:MakeWindow(options)
 		end
 		local success, encoded = pcall(function() return HttpService:JSONEncode(saveTable) end)
 		if success then 
-			writefile(self.ConfigFolder .. "/" .. tostring(game.PlaceId) .. "_" .. filename .. ".json", encoded)
-			if not isAuto then self:MakeNotification({Name = "Config", Content = "Saved " .. filename, Time = 3}) end
+			writefile(self.ConfigFolder .. "/" .. filename .. ".json", encoded)
+			if not isAuto then self:MakeNotification({Name = "Config Saved", Content = "Saved " .. filename, Time = 3}) end
 		end
 	end
 
 	function GameSenseLib:LoadConfig(filename)
-		local path = self.ConfigFolder .. "/" .. tostring(game.PlaceId) .. "_" .. filename .. ".json"
+		local path = self.ConfigFolder .. "/" .. filename .. ".json"
 		if isfile(path) then
 			local success, decoded = pcall(function() return HttpService:JSONDecode(readfile(path)) end)
 			if success then
 				for flag, val in pairs(decoded) do
 					if self.Elements[flag] then pcall(function() self.Elements[flag].Set(val) end) end
 				end
-				self:MakeNotification({Name = "Config", Content = "Loaded " .. filename, Time = 3})
+				self:MakeNotification({Name = "Config Loaded", Content = "Loaded " .. filename, Time = 3})
 			end
 		else
 			self:MakeNotification({Name = "Error", Content = "Config not found.", Time = 3})
 		end
+	end
+
+	function GameSenseLib:Destroy() 
+		if self.Gui then self.Gui:Destroy() end 
+		if getgenv().GameSense_Input then getgenv().GameSense_Input:Disconnect() end
 	end
 
 	function GameSenseLib:Init() 
