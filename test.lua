@@ -5922,9 +5922,9 @@ function GamesenseLib:MakeWindow(config)
     -- Built‑in Settings tab
     local settingsTab = window:CreateTab({ Icon = "rbxassetid://15453349637" })
     local settingsSection = settingsTab:Section({ Name = "Settings", Side = "Left", Fill = true })
-    local settingsParent = settingsSection.Elements.ContentHolder
 
-    local menuKeyLabel = Library:Label({ Message = "Menu key", Parent = settingsParent })
+    -- Correctly invoke Section methods so MainUI/TabUI contexts remain intact
+    local menuKeyLabel = settingsSection:Label({ Message = "Menu key" })
     menuKeyLabel:Keybind({
         Default = Enum.KeyCode.Insert,
         UseMode = false,
@@ -5932,7 +5932,7 @@ function GamesenseLib:MakeWindow(config)
         Callback = function(Key) Library.UI.CloseBind = Key end
     })
 
-    local colorLabel = Library:Label({ Message = "Menu color", Parent = settingsParent })
+    local colorLabel = settingsSection:Label({ Message = "Menu color" })
     colorLabel:ColorPicker({
         Default = Library.Theme.Default.Accent,
         Flag = "MenuColor",
@@ -5946,7 +5946,7 @@ function GamesenseLib:MakeWindow(config)
         end
     })
 
-    Library:Slider({
+    settingsSection:Slider({
         Name = "Menu animation speed",
         Min = 0,
         Max = 150,
@@ -5955,7 +5955,6 @@ function GamesenseLib:MakeWindow(config)
         Ending = "%",
         Disable = {"Off", 0, 150},
         Flag = "AnimSpeed",
-        Parent = settingsParent,
         Callback = function(Value)
             local MinSource, MaxSource = 1, 150
             local MinTarget, MaxTarget = 0.8, 0.1
@@ -5964,16 +5963,14 @@ function GamesenseLib:MakeWindow(config)
         end
     })
 
-    Library:Button({
+    settingsSection:Button({
         Name = "Unload",
         Confirmation = true,
-        Parent = settingsParent,
         Callback = function() Library:Unload() end
     })
 
-    Library:Button({
+    settingsSection:Button({
         Name = "Disable all",
-        Parent = settingsParent,
         Callback = function() Library:Disable() end
     })
 
@@ -5986,32 +5983,30 @@ function GamesenseLib:MakeWindow(config)
             local tab = window:CreateTab({ Icon = icon })
             GamesenseLib._currentTab = tab
             
-            local function createElements(parentResolver)
+            local function createElements(section)
                 return {
                     AddButton = function(_, btnConfig)
                         btnConfig = btnConfig or {}
-                        return Library:Button({
+                        return section:Button({
                             Name = btnConfig.Name or "Button",
                             Callback = btnConfig.Callback or function() end,
                             Confirmation = btnConfig.Confirmation or false,
-                            Risky = btnConfig.Risky or false,
-                            Parent = parentResolver(),
+                            Risky = btnConfig.Risky or false
                         })
                     end,
                     AddToggle = function(_, togConfig)
                         togConfig = togConfig or {}
-                        return Library:Toggle({
+                        return section:Toggle({
                             Default = togConfig.Default or false,
                             Name = togConfig.Name or "Toggle",
                             Risky = togConfig.Risky or false,
                             Flag = togConfig.Flag or Library:NewFlag(),
-                            Callback = togConfig.Callback or function() end,
-                            Parent = parentResolver(),
+                            Callback = togConfig.Callback or function() end
                         })
                     end,
                     AddSlider = function(_, sliConfig)
                         sliConfig = sliConfig or {}
-                        return Library:Slider({
+                        return section:Slider({
                             Name = sliConfig.Name or "Slider",
                             Min = sliConfig.Min or 0,
                             Max = sliConfig.Max or 100,
@@ -6019,40 +6014,35 @@ function GamesenseLib:MakeWindow(config)
                             Decimal = sliConfig.Increment or 1,
                             Ending = sliConfig.ValueName or "",
                             Flag = sliConfig.Flag or Library:NewFlag(),
-                            Callback = sliConfig.Callback or function() end,
-                            Parent = parentResolver(),
+                            Callback = sliConfig.Callback or function() end
                         })
                     end,
                     AddDropdown = function(_, dropConfig)
                         dropConfig = dropConfig or {}
-                        local dropdown = Library:Dropdown({
+                        local dropdown = section:Dropdown({
                             Name = dropConfig.Name or "Dropdown",
                             Content = dropConfig.Options or {},
                             Default = dropConfig.Default or "None",
                             Flag = dropConfig.Flag or Library:NewFlag(),
-                            Callback = dropConfig.Callback or function() end,
-                            Parent = parentResolver(),
+                            Callback = dropConfig.Callback or function() end
                         })
-                        -- Fix: Inject Orion's Refresh method so scripts attempting to dynamically change dropdowns won't crash
                         dropdown.Refresh = function(self, newOptions, newDefault) end
                         return dropdown
                     end,
                     AddColorpicker = function(_, cpConfig)
                         cpConfig = cpConfig or {}
-                        local label = Library:Label({ Message = cpConfig.Name or "Colorpicker", Parent = parentResolver() })
+                        local label = section:Label({ Message = cpConfig.Name or "Colorpicker" })
                         return label:ColorPicker({
                             Default = cpConfig.Default or Library.Theme.Default.Accent,
                             Flag = cpConfig.Flag or Library:NewFlag(),
-                            Callback = cpConfig.Callback or function() end,
+                            Callback = cpConfig.Callback or function() end
                         })
                     end,
                     AddBind = function(_, bindConfig)
                         bindConfig = bindConfig or {}
-                        -- Fix: Map callback directly to the label so it fires on press correctly like Orion
-                        local label = Library:Label({ 
+                        local label = section:Label({ 
                             Message = bindConfig.Name or "Bind", 
-                            Parent = parentResolver(),
-                            Callback = bindConfig.Callback or function() end
+                            Callback = bindConfig.Callback or function() end 
                         })
                         local bind = label:Keybind({
                             Default = bindConfig.Default or Enum.KeyCode.Backspace,
@@ -6060,51 +6050,47 @@ function GamesenseLib:MakeWindow(config)
                             Flag = bindConfig.Flag or Library:NewFlag(),
                             Callback = function(key) end, 
                         })
-                        -- Fix: Label:Keybind returns an empty table internally, ensure .Set exists
                         bind.Set = function(self, keycode) end 
                         return bind
                     end,
                     AddLabel = function(_, labelConfig)
                         labelConfig = labelConfig or {}
-                        local label = Library:Label({ Message = labelConfig.Text or "Label", Parent = parentResolver() })
-                        -- Fix: Inject Orion's Set method to avoid script crashes
+                        local label = section:Label({ Message = labelConfig.Text or "Label" })
                         label.Set = function(self, text) end
                         return label
                     end,
                     AddParagraph = function(_, paraConfig)
                         paraConfig = paraConfig or {}
-                        local paragraph = Library:Label({ Message = paraConfig.Text .. "\n" .. paraConfig.Content, Parent = parentResolver() })
+                        local paragraph = section:Label({ Message = paraConfig.Text .. "\n" .. paraConfig.Content })
                         paragraph.Set = function(self, text, content) end
                         return paragraph
                     end,
                     AddTextbox = function(_, tbConfig)
                         tbConfig = tbConfig or {}
-                        local textbox = Library:TextBox({
+                        local textbox = section:TextBox({
                             Name = tbConfig.Name or "Textbox",
                             Default = tbConfig.Default or "",
                             ClearOnFocus = tbConfig.TextDisappear or false,
                             Flag = tbConfig.Flag or Library:NewFlag(),
-                            Callback = tbConfig.Callback or function() end,
-                            Parent = parentResolver(),
+                            Callback = tbConfig.Callback or function() end
                         })
                         textbox.Set = function(self, text) end
                         return textbox
                     end,
                     AddMultiBox = function(_, mbConfig)
                         mbConfig = mbConfig or {}
-                        return Library:MultiBox({
+                        return section:MultiBox({
                             Name = mbConfig.Name or "MultiBox",
                             Content = mbConfig.Options or {},
                             Default = mbConfig.Default or {},
                             Flag = mbConfig.Flag or Library:NewFlag(),
-                            Callback = mbConfig.Callback or function() end,
-                            Parent = parentResolver(),
+                            Callback = mbConfig.Callback or function() end
                         })
                     end,
                 }
             end
 
-            local tabObj = createElements(function() return getDefaultSection(tab).Elements.ContentHolder end)
+            local tabObj = createElements(getDefaultSection(tab))
 
             tabObj.AddSection = function(_, sectionConfig)
                 sectionConfig = sectionConfig or {}
@@ -6113,7 +6099,7 @@ function GamesenseLib:MakeWindow(config)
                     Side = sectionConfig.Side or "Left",
                     Fill = true,
                 })
-                return createElements(function() return section.Elements.ContentHolder end)
+                return createElements(section)
             end
 
             return tabObj
@@ -6131,5 +6117,7 @@ function GamesenseLib:MakeWindow(config)
         _Library = Library,
     }
 end
+
+return GamesenseLib
 
 return GamesenseLib
