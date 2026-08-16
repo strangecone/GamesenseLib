@@ -3,7 +3,6 @@
     Internal code is the proven gamesense UI – unchanged.
 ]]
 
--- === Internal gamesense library (unchanged) ===
 if Library and Library.Unload then Library:Unload() end
 
 local Workspace = game:GetService("Workspace")
@@ -5883,10 +5882,9 @@ local GamesenseLib = {
     _window = nil,
     _currentTab = nil,
     _tabDefaultSections = {},
-    _internalLibrary = Library, -- expose for advanced use
+    _internalLibrary = Library,
 }
 
--- Helper: get or create a default section for a tab
 local function getDefaultSection(tab)
     if not GamesenseLib._tabDefaultSections[tab] then
         local section = tab:Section({ Name = "", Side = "Left", Fill = true })
@@ -5895,7 +5893,6 @@ local function getDefaultSection(tab)
     return GamesenseLib._tabDefaultSections[tab]
 end
 
--- MakeWindow
 function GamesenseLib:MakeWindow(config)
     config = config or {}
     local name = config.Name or "gamesense"
@@ -5916,24 +5913,18 @@ function GamesenseLib:MakeWindow(config)
     self._currentTab = nil
     self._tabDefaultSections = {}
 
-    -- ----------------------------------------------
-    -- Automatically create a Settings tab with defaults
-    -- ----------------------------------------------
+    -- Built‑in Settings tab
     local settingsTab = window:CreateTab({ Icon = "rbxassetid://15453349637" })
     local settingsSection = settingsTab:Section({ Name = "Settings", Side = "Left", Fill = true })
 
-    -- Menu key
     local menuKeyLabel = settingsSection:Label({ Message = "Menu key" })
     menuKeyLabel:Keybind({
         Default = Enum.KeyCode.Insert,
         UseMode = false,
         Flag = "MenuKey",
-        Callback = function(Key)
-            Library.UI.CloseBind = Key
-        end
+        Callback = function(Key) Library.UI.CloseBind = Key end
     })
 
-    -- Menu color
     local colorLabel = settingsSection:Label({ Message = "Menu color" })
     colorLabel:ColorPicker({
         Default = Library.Theme.Default.Accent,
@@ -5948,7 +5939,6 @@ function GamesenseLib:MakeWindow(config)
         end
     })
 
-    -- Animation speed
     settingsSection:Slider({
         Name = "Menu animation speed",
         Min = 0,
@@ -5966,27 +5956,19 @@ function GamesenseLib:MakeWindow(config)
         end
     })
 
-    -- Unload button
     settingsSection:Button({
         Name = "Unload",
         Confirmation = true,
-        Callback = function()
-            Library:Unload()
-        end
+        Callback = function() Library:Unload() end
     })
 
-    -- Disable all button
     settingsSection:Button({
         Name = "Disable all",
-        Callback = function()
-            Library:Disable()
-        end
+        Callback = function() Library:Disable() end
     })
 
-    -- ** FIX: Activate the Settings tab by default **
-    window:SetTab(1)   -- Settings tab is the first one created
+    window:SetTab(1) -- activate Settings tab by default
 
-    -- Return the window API (unchanged)
     return {
         MakeTab = function(_, tabConfig)
             tabConfig = tabConfig or {}
@@ -6013,14 +5995,13 @@ function GamesenseLib:MakeWindow(config)
                         end,
                         AddToggle = function(_, togConfig)
                             togConfig = togConfig or {}
-                            local toggle = section:Toggle({
+                            return section:Toggle({
                                 Default = togConfig.Default or false,
                                 Name = togConfig.Name or "Toggle",
                                 Risky = togConfig.Risky or false,
                                 Flag = togConfig.Flag or Library:NewFlag(),
                                 Callback = togConfig.Callback or function() end,
                             })
-                            return toggle
                         end,
                         AddSlider = function(_, sliConfig)
                             sliConfig = sliConfig or {}
@@ -6048,23 +6029,21 @@ function GamesenseLib:MakeWindow(config)
                         AddColorpicker = function(_, cpConfig)
                             cpConfig = cpConfig or {}
                             local label = section:Label({ Message = cpConfig.Name or "Colorpicker" })
-                            local cp = label:ColorPicker({
+                            return label:ColorPicker({
                                 Default = cpConfig.Default or Library.Theme.Default.Accent,
                                 Flag = cpConfig.Flag or Library:NewFlag(),
                                 Callback = cpConfig.Callback or function() end,
                             })
-                            return cp
                         end,
                         AddBind = function(_, bindConfig)
                             bindConfig = bindConfig or {}
                             local label = section:Label({ Message = bindConfig.Name or "Bind" })
-                            local bind = label:Keybind({
+                            return label:Keybind({
                                 Default = bindConfig.Default or Enum.KeyCode.Backspace,
                                 Mode = bindConfig.Hold and "On hotkey" or "Toggle",
                                 Flag = bindConfig.Flag or Library:NewFlag(),
                                 Callback = bindConfig.Callback or function() end,
                             })
-                            return bind
                         end,
                         AddLabel = function(_, labelConfig)
                             labelConfig = labelConfig or {}
@@ -6072,9 +6051,7 @@ function GamesenseLib:MakeWindow(config)
                         end,
                         AddParagraph = function(_, paraConfig)
                             paraConfig = paraConfig or {}
-                            local text = paraConfig.Text or "Text"
-                            local content = paraConfig.Content or "Content"
-                            return section:Label({ Message = text .. "\n" .. content })
+                            return section:Label({ Message = paraConfig.Text .. "\n" .. paraConfig.Content })
                         end,
                         AddTextbox = function(_, tbConfig)
                             tbConfig = tbConfig or {}
@@ -6098,7 +6075,6 @@ function GamesenseLib:MakeWindow(config)
                         end,
                     }
                 end,
-                -- Direct element methods (using default section)
                 AddButton = function(_, btnConfig) return getDefaultSection(tab):Button(btnConfig) end,
                 AddToggle = function(_, togConfig) return getDefaultSection(tab):Toggle(togConfig) end,
                 AddSlider = function(_, sliConfig) return getDefaultSection(tab):Slider(sliConfig) end,
@@ -6125,12 +6101,8 @@ function GamesenseLib:MakeWindow(config)
                 Position = notifConfig.Position or "Top Left",
             })
         end,
-        Init = function()
-            Library:Init()
-        end,
-        Destroy = function()
-            Library:Unload()
-        end,
+        Init = function() Library:Init() end,
+        Destroy = function() Library:Unload() end,
         _Library = Library,
     }
 end
