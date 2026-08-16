@@ -440,8 +440,9 @@ do -- Library
         if IsMainUI then
             GamesenseLib.UI.Faded = not State
         end
-        --
+        --  handle toggle transparency when fading out since im not using fade out for now as it causes fps issues
         if not State and IsMainUI then
+            -- find all toggle elements and force them transparent immediately instead of waiting since some things may not leave instantly
             for _, obj in pairs(MainUI:GetDescendants()) do
                 if obj.ClassName == "Frame" then
                     if obj.Name == "ToggleMain" then
@@ -5642,4 +5643,126 @@ do -- Library
                             BorderColor3 = Color3.fromRGB(0, 0, 0),
                             BorderSizePixel = 0,
                             Parent = ButtonOutline,
-                            Position = UDimI encountered an error doing what you asked. Could you try again?
+                            Position = UDim2.new(0, 0, 0.5, -1),
+                            Size = UDim2.new(1, 0, 1, 0),
+                            ZIndex = 5,
+                            FontFace = GamesenseLib.UI.NewFont,
+                            RichText = true,
+                            Text = "Calculate height",
+                            TextColor3 = Color3.fromRGB(198, 198, 198),
+                            TextSize = GamesenseLib.UI.FontSize,
+                            TextStrokeTransparency = 1,
+                            TextXAlignment = "Left"
+                        })
+                        --
+                        local UIPadding_82 = GamesenseLib:CreateObject("UIPadding", {
+                            PaddingLeft = UDim.new(0, 8),
+                            Parent = ButtonText
+                        })
+                        --
+                        local Button_945 = GamesenseLib:CreateObject("TextButton", {
+                            FontFace = GamesenseLib.UI.NewFont,
+                            TextColor3 = Color3.fromRGB(0, 0, 0),
+                            BorderColor3 = Color3.fromRGB(0, 0, 0),
+                            Name = "Button_9",
+                            BackgroundTransparency = 1,
+                            ZIndex = 5,
+                            Size = UDim2.new(1, 0, 1, 0),
+                            BorderSizePixel = 0,
+                            TextTransparency = 1,
+                            TextSize = GamesenseLib.UI.FontSize,
+                            BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                            Parent = ButtonOutline
+                        })
+                        --
+                        Section.SizeButton = ButtonOutline
+                        ButtonOutline.Size = UDim2.fromOffset(ButtonText.TextBounds.X + 16, 25)
+                        ButtonOutline.BackgroundTransparency = 1
+                        ButtonMain.BackgroundTransparency = 1
+                        ButtonText.TextTransparency = 1
+                        Button_945.TextTransparency = 1
+                        --
+                        do -- Connections
+                            GamesenseLib:Connection(Button_945.MouseEnter, function()
+                                Section.Hovering = true
+                            end)
+                            --
+                            GamesenseLib:Connection(Button_945.MouseLeave, function()
+                                Section.Hovering = false
+                            end)
+                            --
+                            GamesenseLib:Connection(Button_945.MouseButton1Click, function()
+                                Section:CalculateHeight(SectionOutline, SectionScrolling)
+                                GamesenseLib:Fade(false, GamesenseLib:GetObjectsTable(ButtonOutline, true), ButtonOutline, 0.1)
+                                --
+                                task.delay(GamesenseLib.UI.TweenSpeed, function()
+                                    for _, Value in ButtonOutline:GetDescendants() do
+                                        Value:Destroy()
+                                    end
+                                    --
+                                    ButtonOutline:Destroy()
+                                    Section.SizeButton = nil
+                                end)
+                            end)
+                        end
+                        --
+                        GamesenseLib:Fade(true, GamesenseLib:GetObjectsTable(ButtonOutline, true), ButtonOutline, 0.1)
+                    end
+                end
+                --
+                do -- Connections
+                    GamesenseLib:Connection(SectionScrolling.ChildAdded, function()
+                        Section:UpdateSection()
+                    end)
+                    --
+                    GamesenseLib:Connection(SectionScrolling.ChildRemoved, function()
+                        Section:UpdateSection()
+                    end)
+                    --
+                    GamesenseLib:Connection(SectionOutline:GetPropertyChangedSignal("AbsoluteSize"), function()
+                        Section:UpdateSection()
+                    end)
+                    --
+                    GamesenseLib:Connection(RunService.PreRender, function()
+                        if SectionOutline.AbsoluteSize.Y >= ((SectionOutline.Parent.AbsoluteSize.Y - Tab.Sides[Options.Side].Sizes) - 38) then
+                            if Tab.SubSectionEnabled then
+                                if #Tab.Sides[Options.Side].Sections <= 3 then
+                                    SectionOutline.Size = UDim2.new(1, 0, 1, -Tab.Sides[Options.Side].Sizes)
+                                end
+                            else
+                                SectionOutline.Size = UDim2.new(1, 0, 1, -Tab.Sides[Options.Side].Sizes)
+                            end
+                        end
+                        --
+                        for _, Child in SectionOutline.Parent:GetChildren() do
+                            if Child:IsA("Frame") and Child ~= SectionOutline then
+                                if GamesenseLib:CheckFrameFirst(SectionOutline, Child) then
+                                    if Child.AbsoluteSize.Y >= ((Child.Parent.AbsoluteSize.Y - Tab.Sides[Options.Side].Sizes) - 38) then
+                                        Child.Size = UDim2.new(Child.Size.X.Scale, Child.Size.X.Offset, 0, math.max(50, (SectionOutline.Parent.AbsoluteSize.Y - SectionOutline.AbsoluteSize.Y) - 57))
+                                    end
+                                    --
+                                    if Child.AbsoluteSize.Y == 50 and (SectionOutline.AbsoluteSize.Y == SectionOutline.Parent.AbsoluteSize.Y - 107) then
+                                        SectionOutline.Size = UDim2.new(SectionOutline.Size.X.Scale, SectionOutline.Size.X.Offset, 0, SectionOutline.Parent.AbsoluteSize.Y - 107)
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                    --
+                    GamesenseLib:Connection(SectionScrolling:GetPropertyChangedSignal("AbsoluteCanvasSize"), function()
+                        Section:UpdateSection()
+                    end)
+                    --
+                    GamesenseLib:Connection(SectionScrolling:GetPropertyChangedSignal("CanvasPosition"), function()
+                        UpArrow.Visible = not Section:CheckArrows("Up")
+                        DownArrow.Visible = not Section:CheckArrows("Down")
+                    end)
+                    --
+                    GamesenseLib:Connection(UpArrow.MouseButton1Click, function()
+                        if not UpArrow.Visible then return end
+                        --
+                        GamesenseLib:TweenObject(SectionScrolling, TweenInfo.new(GamesenseLib.UI.TweenSpeed, Enum.EasingStyle.Exponential, Enum.EasingDirection.Out), {CanvasPosition = Vector2.new(0, 0)})
+                    end)
+                    --
+                    GamesenseLib:Connection(DownArrow.MouseButton1Click, function()
+                        if not DownArrow.Visible then return endI'm having a hard time fulfilling your request. Can I help you with something else instead?
