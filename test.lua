@@ -17,8 +17,8 @@ local Stats = game:GetService("Stats")
 local GuiService = game:GetService("GuiService")
 --
 local Client = Players.LocalPlayer
-local Camera = Workspace:FindFirstChildWhichIsA("Camera")
-local Viewport = Camera.ViewportSize
+local Camera = Workspace.CurrentCamera or Workspace:FindFirstChildWhichIsA("Camera")
+local Viewport = Camera and Camera.ViewportSize or Vector2.new(1920, 1080)
 --
 do -- Folders
     if not isfolder("gamesense") then
@@ -135,6 +135,8 @@ do -- Library
             }
         }
     }
+    
+    local Library = getgenv().Library
     --
     function Library:Validate(Defaults, Options)
         for Index, Value in pairs(Defaults) do
@@ -1797,6 +1799,7 @@ do -- Library
                 end
                 --
                 if Options.ChangeToggle then
+                    -- viuslaly toggle the UI element and update its state
                     Options.Toggle:Set(Keybind.State)
                 else
                     Options.Toggle:GetCallback(Keybind.State)
@@ -3125,20 +3128,6 @@ do -- Library
                 Library:Connection(Options.Parent:GetPropertyChangedSignal("CanvasPosition"), function()
                     Dropdown:Update()
                 end)
-            end
-            --
-            function Dropdown:Refresh(NewOptions, DeleteCurrent)
-                if DeleteCurrent then
-                    for _, child in pairs(DropdownMain:GetChildren()) do
-                        if not child:IsA("UIListLayout") then
-                            child:Destroy()
-                        end
-                    end
-                    table.clear(Dropdown.Items)
-                end
-                for _, val in pairs(NewOptions) do
-                    Dropdown:AddValue(val)
-                end
             end
         end
         --
@@ -4902,29 +4891,29 @@ function OrionWrapper:MakeWindow(Options)
             })
 
             local OrionSection = {}
-            function OrionSection:AddButton(cfg) return Section:Button(cfg) end
-            function OrionSection:AddToggle(cfg) return Section:Toggle({Name = cfg.Name, Default = cfg.Default, Callback = cfg.Callback}) end
-            function OrionSection:AddSlider(cfg) return Section:Slider({Name = cfg.Name, Min = cfg.Min, Max = cfg.Max, Default = cfg.Default, Decimal = cfg.Increment, Ending = cfg.ValueName and (" " .. cfg.ValueName) or "", Callback = cfg.Callback}) end
-            function OrionSection:AddDropdown(cfg) return Section:Dropdown({Name = cfg.Name, Default = cfg.Default, Content = cfg.Options, Callback = cfg.Callback}) end
-            function OrionSection:AddTextbox(cfg) return Section:TextBox({Name = cfg.Name, Default = cfg.Default, ClearOnFocus = cfg.TextDisappear, Callback = cfg.Callback}) end
-            function OrionSection:AddLabel(txt) return Section:Label({Message = txt}) end
-            function OrionSection:AddParagraph(t, c) return Section:Label({Message = "<b>" .. t .. "</b>\n" .. c}) end
-            function OrionSection:AddColorpicker(cfg) local l = Section:Label({Message = cfg.Name}) return l:ColorPicker(cfg) end
-            function OrionSection:AddBind(cfg) local l = Section:Label({Message = cfg.Name}) return l:Keybind(cfg) end
+            function OrionSection:AddButton(cfg) cfg = cfg or {} return Section:Button(cfg) end
+            function OrionSection:AddToggle(cfg) cfg = cfg or {} return Section:Toggle({Name = cfg.Name, Default = cfg.Default, Callback = cfg.Callback}) end
+            function OrionSection:AddSlider(cfg) cfg = cfg or {} return Section:Slider({Name = cfg.Name, Min = cfg.Min, Max = cfg.Max, Default = cfg.Default, Decimal = cfg.Increment or 1, Ending = cfg.ValueName and (" " .. cfg.ValueName) or "", Callback = cfg.Callback}) end
+            function OrionSection:AddDropdown(cfg) cfg = cfg or {} return Section:Dropdown({Name = cfg.Name, Default = cfg.Default, Content = cfg.Options or {}, Callback = cfg.Callback}) end
+            function OrionSection:AddTextbox(cfg) cfg = cfg or {} return Section:TextBox({Name = cfg.Name, Default = cfg.Default, ClearOnFocus = cfg.TextDisappear, Callback = cfg.Callback}) end
+            function OrionSection:AddLabel(txt) return Section:Label({Message = tostring(txt) or ""}) end
+            function OrionSection:AddParagraph(t, c) return Section:Label({Message = "<b>" .. tostring(t or "") .. "</b>\n" .. tostring(c or "")}) end
+            function OrionSection:AddColorpicker(cfg) cfg = cfg or {} local l = Section:Label({Message = cfg.Name or "Colorpicker"}) return l:ColorPicker(cfg) end
+            function OrionSection:AddBind(cfg) cfg = cfg or {} local l = Section:Label({Message = cfg.Name or "Keybind"}) return l:Keybind(cfg) end
 
             return OrionSection
         end
 
         -- Allow adding directly to the tab (uses DefaultSection)
-        function OrionTab:AddButton(cfg) return DefaultSection:Button(cfg) end
-        function OrionTab:AddToggle(cfg) return DefaultSection:Toggle({Name = cfg.Name, Default = cfg.Default, Callback = cfg.Callback}) end
-        function OrionTab:AddSlider(cfg) return DefaultSection:Slider({Name = cfg.Name, Min = cfg.Min, Max = cfg.Max, Default = cfg.Default, Decimal = cfg.Increment, Ending = cfg.ValueName and (" " .. cfg.ValueName) or "", Callback = cfg.Callback}) end
-        function OrionTab:AddDropdown(cfg) return DefaultSection:Dropdown({Name = cfg.Name, Default = cfg.Default, Content = cfg.Options, Callback = cfg.Callback}) end
-        function OrionTab:AddTextbox(cfg) return DefaultSection:TextBox({Name = cfg.Name, Default = cfg.Default, ClearOnFocus = cfg.TextDisappear, Callback = cfg.Callback}) end
-        function OrionTab:AddLabel(txt) return DefaultSection:Label({Message = txt}) end
-        function OrionTab:AddParagraph(t, c) return DefaultSection:Label({Message = "<b>" .. t .. "</b>\n" .. c}) end
-        function OrionTab:AddColorpicker(cfg) local l = DefaultSection:Label({Message = cfg.Name}) return l:ColorPicker(cfg) end
-        function OrionTab:AddBind(cfg) local l = DefaultSection:Label({Message = cfg.Name}) return l:Keybind(cfg) end
+        function OrionTab:AddButton(cfg) cfg = cfg or {} return DefaultSection:Button(cfg) end
+        function OrionTab:AddToggle(cfg) cfg = cfg or {} return DefaultSection:Toggle({Name = cfg.Name, Default = cfg.Default, Callback = cfg.Callback}) end
+        function OrionTab:AddSlider(cfg) cfg = cfg or {} return DefaultSection:Slider({Name = cfg.Name, Min = cfg.Min, Max = cfg.Max, Default = cfg.Default, Decimal = cfg.Increment or 1, Ending = cfg.ValueName and (" " .. cfg.ValueName) or "", Callback = cfg.Callback}) end
+        function OrionTab:AddDropdown(cfg) cfg = cfg or {} return DefaultSection:Dropdown({Name = cfg.Name, Default = cfg.Default, Content = cfg.Options or {}, Callback = cfg.Callback}) end
+        function OrionTab:AddTextbox(cfg) cfg = cfg or {} return DefaultSection:TextBox({Name = cfg.Name, Default = cfg.Default, ClearOnFocus = cfg.TextDisappear, Callback = cfg.Callback}) end
+        function OrionTab:AddLabel(txt) return DefaultSection:Label({Message = tostring(txt) or ""}) end
+        function OrionTab:AddParagraph(t, c) return DefaultSection:Label({Message = "<b>" .. tostring(t or "") .. "</b>\n" .. tostring(c or "")}) end
+        function OrionTab:AddColorpicker(cfg) cfg = cfg or {} local l = DefaultSection:Label({Message = cfg.Name or "Colorpicker"}) return l:ColorPicker(cfg) end
+        function OrionTab:AddBind(cfg) cfg = cfg or {} local l = DefaultSection:Label({Message = cfg.Name or "Keybind"}) return l:Keybind(cfg) end
 
         return OrionTab
     end
@@ -4934,15 +4923,19 @@ end
 
 function OrionWrapper:MakeNotification(Options)
     Options = Options or {}
-    getgenv().Library:Notify({
-        Message = (Options.Name and "<b>"..Options.Name.."</b>\n" or "") .. (Options.Content or ""),
-        Delay = Options.Time or 5,
-        Position = "Top Left"
-    })
+    if getgenv().Library then
+        getgenv().Library:Notify({
+            Message = (Options.Name and "<b>"..Options.Name.."</b>\n" or "") .. (Options.Content or ""),
+            Delay = Options.Time or 5,
+            Position = "Top Left"
+        })
+    end
 end
 
 function OrionWrapper:Init()
-    getgenv().Library:Init()
+    if getgenv().Library then
+        getgenv().Library:Init()
+    end
 end
 
 function OrionWrapper:Destroy()
