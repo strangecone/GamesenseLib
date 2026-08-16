@@ -5903,8 +5903,7 @@ function GamesenseLib:MakeNotification(notifConfig)
     })
 end
 
--- Orion scripts use OrionLib.Flags["FlagName"].Value to get states.
--- This proxy prevents nil errors when hub scripts try to read them.
+-- Safely expose Flags for Orion scripts
 GamesenseLib.Flags = setmetatable({}, {
     __index = function(_, key)
         local element = Library.Flags[key]
@@ -6019,17 +6018,18 @@ function GamesenseLib:MakeWindow(config)
                     end,
                     AddToggle = function(_, togConfig)
                         togConfig = togConfig or {}
-                        return section:Toggle({
+                        local tog = section:Toggle({
                             Default = togConfig.Default or false,
                             Name = togConfig.Name or "Toggle",
                             Risky = togConfig.Risky or false,
                             Flag = togConfig.Flag or Library:NewFlag(),
                             Callback = togConfig.Callback or function() end,
                         })
+                        return tog
                     end,
                     AddSlider = function(_, sliConfig)
                         sliConfig = sliConfig or {}
-                        return section:Slider({
+                        local sli = section:Slider({
                             Name = sliConfig.Name or "Slider",
                             Min = sliConfig.Min or 0,
                             Max = sliConfig.Max or 100,
@@ -6039,6 +6039,7 @@ function GamesenseLib:MakeWindow(config)
                             Flag = sliConfig.Flag or Library:NewFlag(),
                             Callback = sliConfig.Callback or function() end,
                         })
+                        return sli
                     end,
                     AddDropdown = function(_, dropConfig)
                         dropConfig = dropConfig or {}
@@ -6049,27 +6050,35 @@ function GamesenseLib:MakeWindow(config)
                             Flag = dropConfig.Flag or Library:NewFlag(),
                             Callback = dropConfig.Callback or function() end,
                         })
-                        -- Adds Orion's Refresh method safely
                         if not dropdown.Refresh then dropdown.Refresh = function() end end
                         return dropdown
                     end,
                     AddColorpicker = function(_, cpConfig)
                         cpConfig = cpConfig or {}
                         local label = section:Label({ Message = cpConfig.Name or "Colorpicker" })
-                        return label:ColorPicker({
+                        local picker = label:ColorPicker({
                             Default = cpConfig.Default or Library.Theme.Default.Accent,
                             Flag = cpConfig.Flag or Library:NewFlag(),
                             Callback = cpConfig.Callback or function() end,
                         })
+                        return picker
                     end,
                     AddBind = function(_, bindConfig)
                         bindConfig = bindConfig or {}
+                        
+                        -- Prevent crashes if Orion scripts pass raw strings (like "None")
+                        local defKey = bindConfig.Default or Enum.KeyCode.Backspace
+                        if type(defKey) == "string" then
+                            local success, res = pcall(function() return Enum.KeyCode[defKey] end)
+                            defKey = success and res or Enum.KeyCode.Unknown
+                        end
+
                         local label = section:Label({ 
                             Message = bindConfig.Name or "Bind", 
                             Callback = bindConfig.Callback or function() end 
                         })
                         local bind = label:Keybind({
-                            Default = bindConfig.Default or Enum.KeyCode.Backspace,
+                            Default = defKey,
                             Mode = bindConfig.Hold and "On hotkey" or "Toggle",
                             Flag = bindConfig.Flag or Library:NewFlag(),
                             Callback = function() end, 
@@ -6103,13 +6112,14 @@ function GamesenseLib:MakeWindow(config)
                     end,
                     AddMultiBox = function(_, mbConfig)
                         mbConfig = mbConfig or {}
-                        return section:MultiBox({
+                        local multibox = section:MultiBox({
                             Name = mbConfig.Name or "MultiBox",
                             Content = mbConfig.Options or {},
                             Default = mbConfig.Default or {},
                             Flag = mbConfig.Flag or Library:NewFlag(),
                             Callback = mbConfig.Callback or function() end,
                         })
+                        return multibox
                     end,
                 }
             end
