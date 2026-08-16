@@ -5901,7 +5901,6 @@ function GamesenseLib:MakeWindow(config)
     local name = config.Name or "gamesense"
     local saveConfig = config.SaveConfig or false
     local configFolder = config.ConfigFolder or "gamesense"
-    -- Set up config paths
     if saveConfig then
         Library.Folder = configFolder
         Library.ConfigFolder = configFolder .. "/Configs"
@@ -5909,7 +5908,6 @@ function GamesenseLib:MakeWindow(config)
             makefolder(Library.ConfigFolder)
         end
     end
-    -- Create the window
     local window = Library:Window({
         Name = name,
         CloseBind = Enum.KeyCode.Insert,
@@ -5921,24 +5919,23 @@ function GamesenseLib:MakeWindow(config)
     -- ----------------------------------------------
     -- Automatically create a Settings tab with defaults
     -- ----------------------------------------------
-    local settingsTab = window:CreateTab({ Icon = "rbxassetid://15453349637" })  -- settings icon
+    local settingsTab = window:CreateTab({ Icon = "rbxassetid://15453349637" })
     local settingsSection = settingsTab:Section({ Name = "Settings", Side = "Left", Fill = true })
 
     -- Menu key
     local menuKeyLabel = settingsSection:Label({ Message = "Menu key" })
-    local menuKeyBind = menuKeyLabel:Keybind({
+    menuKeyLabel:Keybind({
         Default = Enum.KeyCode.Insert,
         UseMode = false,
         Flag = "MenuKey",
         Callback = function(Key)
-            -- Update the internal close bind
             Library.UI.CloseBind = Key
         end
     })
 
     -- Menu color
     local colorLabel = settingsSection:Label({ Message = "Menu color" })
-    local colorPicker = colorLabel:ColorPicker({
+    colorLabel:ColorPicker({
         Default = Library.Theme.Default.Accent,
         Flag = "MenuColor",
         Callback = function(Color)
@@ -5952,7 +5949,7 @@ function GamesenseLib:MakeWindow(config)
     })
 
     -- Animation speed
-    local animSlider = settingsSection:Slider({
+    settingsSection:Slider({
         Name = "Menu animation speed",
         Min = 0,
         Max = 150,
@@ -5986,7 +5983,10 @@ function GamesenseLib:MakeWindow(config)
         end
     })
 
-    -- Return the window API (same as Orion)
+    -- ** FIX: Activate the Settings tab by default **
+    window:SetTab(1)   -- Settings tab is the first one created
+
+    -- Return the window API (unchanged)
     return {
         MakeTab = function(_, tabConfig)
             tabConfig = tabConfig or {}
@@ -6117,13 +6117,12 @@ function GamesenseLib:MakeWindow(config)
                 AddMultiBox = function(_, mbConfig) return getDefaultSection(tab):MultiBox(mbConfig) end,
             }
         end,
-        -- Global methods
         MakeNotification = function(_, notifConfig)
             notifConfig = notifConfig or {}
             Library:Notify({
                 Message = notifConfig.Content or "Notification",
                 Delay = notifConfig.Time or 5,
-                Position = notifConfig.Position or "Top Left",  -- support position
+                Position = notifConfig.Position or "Top Left",
             })
         end,
         Init = function()
@@ -6132,7 +6131,6 @@ function GamesenseLib:MakeWindow(config)
         Destroy = function()
             Library:Unload()
         end,
-        -- Expose internal Library for advanced use (optional)
         _Library = Library,
     }
 end
