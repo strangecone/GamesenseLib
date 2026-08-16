@@ -1370,7 +1370,7 @@ do -- Library
             MainUI = nil,
             Hiding = false,
             ToggleState = false,
-            Flag = Library.NewFlag(),
+            Flag = Library:NewFlag(),
             Count = 1,
             ChangeToggle = false,
             Callback = function() end,
@@ -5966,7 +5966,7 @@ function GamesenseLib:MakeWindow(config)
 
     window:SetTab(1)
 
-    -- Wrap the return object explicitly mapping to the Orion API layout without deep Metatables
+    -- Wrap the return object explicitly mapping to the Orion API layout
     local windowWrapper = {}
 
     function windowWrapper:MakeTab(tabConfig)
