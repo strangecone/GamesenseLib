@@ -5898,17 +5898,23 @@ function GamesenseLib:MakeWindow(config)
     local name = config.Name or "gamesense"
     local saveConfig = config.SaveConfig or false
     local configFolder = config.ConfigFolder or "gamesense"
+    
     if saveConfig then
         Library.Folder = configFolder
         Library.ConfigFolder = configFolder .. "/Configs"
+        if not isfolder(Library.Folder) then
+            makefolder(Library.Folder)
+        end
         if not isfolder(Library.ConfigFolder) then
             makefolder(Library.ConfigFolder)
         end
     end
+    
     local window = Library:Window({
         Name = name,
         CloseBind = Enum.KeyCode.Insert,
     })
+    
     self._window = window
     self._currentTab = nil
     self._tabDefaultSections = {}
@@ -5916,8 +5922,9 @@ function GamesenseLib:MakeWindow(config)
     -- Built‑in Settings tab
     local settingsTab = window:CreateTab({ Icon = "rbxassetid://15453349637" })
     local settingsSection = settingsTab:Section({ Name = "Settings", Side = "Left", Fill = true })
+    local settingsParent = settingsSection.Elements.ContentHolder
 
-    local menuKeyLabel = settingsSection:Label({ Message = "Menu key" })
+    local menuKeyLabel = Library:Label({ Message = "Menu key", Parent = settingsParent })
     menuKeyLabel:Keybind({
         Default = Enum.KeyCode.Insert,
         UseMode = false,
@@ -5925,7 +5932,7 @@ function GamesenseLib:MakeWindow(config)
         Callback = function(Key) Library.UI.CloseBind = Key end
     })
 
-    local colorLabel = settingsSection:Label({ Message = "Menu color" })
+    local colorLabel = Library:Label({ Message = "Menu color", Parent = settingsParent })
     colorLabel:ColorPicker({
         Default = Library.Theme.Default.Accent,
         Flag = "MenuColor",
@@ -5939,7 +5946,7 @@ function GamesenseLib:MakeWindow(config)
         end
     })
 
-    settingsSection:Slider({
+    Library:Slider({
         Name = "Menu animation speed",
         Min = 0,
         Max = 150,
@@ -5948,6 +5955,7 @@ function GamesenseLib:MakeWindow(config)
         Ending = "%",
         Disable = {"Off", 0, 150},
         Flag = "AnimSpeed",
+        Parent = settingsParent,
         Callback = function(Value)
             local MinSource, MaxSource = 1, 150
             local MinTarget, MaxTarget = 0.8, 0.1
@@ -5956,14 +5964,16 @@ function GamesenseLib:MakeWindow(config)
         end
     })
 
-    settingsSection:Button({
+    Library:Button({
         Name = "Unload",
         Confirmation = true,
+        Parent = settingsParent,
         Callback = function() Library:Unload() end
     })
 
-    settingsSection:Button({
+    Library:Button({
         Name = "Disable all",
+        Parent = settingsParent,
         Callback = function() Library:Disable() end
     })
 
@@ -5975,123 +5985,122 @@ function GamesenseLib:MakeWindow(config)
             local icon = tabConfig.Icon or "rbxassetid://8547236654"
             local tab = window:CreateTab({ Icon = icon })
             GamesenseLib._currentTab = tab
-            return {
-                AddSection = function(_, sectionConfig)
-                    sectionConfig = sectionConfig or {}
-                    local section = tab:Section({
-                        Name = sectionConfig.Name or "Section",
-                        Side = "Left",
-                        Fill = true,
-                    })
-                    return {
-                        AddButton = function(_, btnConfig)
-                            btnConfig = btnConfig or {}
-                            return section:Button({
-                                Name = btnConfig.Name or "Button",
-                                Callback = btnConfig.Callback or function() end,
-                                Confirmation = btnConfig.Confirmation or false,
-                                Risky = btnConfig.Risky or false,
-                            })
-                        end,
-                        AddToggle = function(_, togConfig)
-                            togConfig = togConfig or {}
-                            return section:Toggle({
-                                Default = togConfig.Default or false,
-                                Name = togConfig.Name or "Toggle",
-                                Risky = togConfig.Risky or false,
-                                Flag = togConfig.Flag or Library:NewFlag(),
-                                Callback = togConfig.Callback or function() end,
-                            })
-                        end,
-                        AddSlider = function(_, sliConfig)
-                            sliConfig = sliConfig or {}
-                            return section:Slider({
-                                Name = sliConfig.Name or "Slider",
-                                Min = sliConfig.Min or 0,
-                                Max = sliConfig.Max or 100,
-                                Default = sliConfig.Default or 50,
-                                Decimal = sliConfig.Increment or 1,
-                                Ending = sliConfig.ValueName or "",
-                                Flag = sliConfig.Flag or Library:NewFlag(),
-                                Callback = sliConfig.Callback or function() end,
-                            })
-                        end,
-                        AddDropdown = function(_, dropConfig)
-                            dropConfig = dropConfig or {}
-                            return section:Dropdown({
-                                Name = dropConfig.Name or "Dropdown",
-                                Content = dropConfig.Options or {},
-                                Default = dropConfig.Default or "None",
-                                Flag = dropConfig.Flag or Library:NewFlag(),
-                                Callback = dropConfig.Callback or function() end,
-                            })
-                        end,
-                        AddColorpicker = function(_, cpConfig)
-                            cpConfig = cpConfig or {}
-                            local label = section:Label({ Message = cpConfig.Name or "Colorpicker" })
-                            return label:ColorPicker({
-                                Default = cpConfig.Default or Library.Theme.Default.Accent,
-                                Flag = cpConfig.Flag or Library:NewFlag(),
-                                Callback = cpConfig.Callback or function() end,
-                            })
-                        end,
-                        AddBind = function(_, bindConfig)
-                            bindConfig = bindConfig or {}
-                            local label = section:Label({ Message = bindConfig.Name or "Bind" })
-                            return label:Keybind({
-                                Default = bindConfig.Default or Enum.KeyCode.Backspace,
-                                Mode = bindConfig.Hold and "On hotkey" or "Toggle",
-                                Flag = bindConfig.Flag or Library:NewFlag(),
-                                Callback = bindConfig.Callback or function() end,
-                            })
-                        end,
-                        AddLabel = function(_, labelConfig)
-                            labelConfig = labelConfig or {}
-                            return section:Label({ Message = labelConfig.Text or "Label" })
-                        end,
-                        AddParagraph = function(_, paraConfig)
-                            paraConfig = paraConfig or {}
-                            return section:Label({ Message = paraConfig.Text .. "\n" .. paraConfig.Content })
-                        end,
-                        AddTextbox = function(_, tbConfig)
-                            tbConfig = tbConfig or {}
-                            return section:TextBox({
-                                Name = tbConfig.Name or "Textbox",
-                                Default = tbConfig.Default or "",
-                                ClearOnFocus = tbConfig.TextDisappear or false,
-                                Flag = tbConfig.Flag or Library:NewFlag(),
-                                Callback = tbConfig.Callback or function() end,
-                            })
-                        end,
-                        AddMultiBox = function(_, mbConfig)
-                            mbConfig = mbConfig or {}
-                            return section:MultiBox({
-                                Name = mbConfig.Name or "MultiBox",
-                                Content = mbConfig.Options or {},
-                                Default = mbConfig.Default or {},
-                                Flag = mbConfig.Flag or Library:NewFlag(),
-                                Callback = mbConfig.Callback or function() end,
-                            })
-                        end,
-                    }
-                end,
-                AddButton = function(_, btnConfig) return getDefaultSection(tab):Button(btnConfig) end,
-                AddToggle = function(_, togConfig) return getDefaultSection(tab):Toggle(togConfig) end,
-                AddSlider = function(_, sliConfig) return getDefaultSection(tab):Slider(sliConfig) end,
-                AddDropdown = function(_, dropConfig) return getDefaultSection(tab):Dropdown(dropConfig) end,
-                AddColorpicker = function(_, cpConfig)
-                    local label = getDefaultSection(tab):Label({ Message = cpConfig.Name or "Colorpicker" })
-                    return label:ColorPicker(cpConfig)
-                end,
-                AddBind = function(_, bindConfig)
-                    local label = getDefaultSection(tab):Label({ Message = bindConfig.Name or "Bind" })
-                    return label:Keybind(bindConfig)
-                end,
-                AddLabel = function(_, labelConfig) return getDefaultSection(tab):Label(labelConfig) end,
-                AddParagraph = function(_, paraConfig) return getDefaultSection(tab):Label({ Message = paraConfig.Text .. "\n" .. paraConfig.Content }) end,
-                AddTextbox = function(_, tbConfig) return getDefaultSection(tab):TextBox(tbConfig) end,
-                AddMultiBox = function(_, mbConfig) return getDefaultSection(tab):MultiBox(mbConfig) end,
-            }
+            
+            local function createElements(parentResolver)
+                return {
+                    AddButton = function(_, btnConfig)
+                        btnConfig = btnConfig or {}
+                        return Library:Button({
+                            Name = btnConfig.Name or "Button",
+                            Callback = btnConfig.Callback or function() end,
+                            Confirmation = btnConfig.Confirmation or false,
+                            Risky = btnConfig.Risky or false,
+                            Parent = parentResolver(),
+                        })
+                    end,
+                    AddToggle = function(_, togConfig)
+                        togConfig = togConfig or {}
+                        return Library:Toggle({
+                            Default = togConfig.Default or false,
+                            Name = togConfig.Name or "Toggle",
+                            Risky = togConfig.Risky or false,
+                            Flag = togConfig.Flag or Library:NewFlag(),
+                            Callback = togConfig.Callback or function() end,
+                            Parent = parentResolver(),
+                        })
+                    end,
+                    AddSlider = function(_, sliConfig)
+                        sliConfig = sliConfig or {}
+                        return Library:Slider({
+                            Name = sliConfig.Name or "Slider",
+                            Min = sliConfig.Min or 0,
+                            Max = sliConfig.Max or 100,
+                            Default = sliConfig.Default or 50,
+                            Decimal = sliConfig.Increment or 1,
+                            Ending = sliConfig.ValueName or "",
+                            Flag = sliConfig.Flag or Library:NewFlag(),
+                            Callback = sliConfig.Callback or function() end,
+                            Parent = parentResolver(),
+                        })
+                    end,
+                    AddDropdown = function(_, dropConfig)
+                        dropConfig = dropConfig or {}
+                        return Library:Dropdown({
+                            Name = dropConfig.Name or "Dropdown",
+                            Content = dropConfig.Options or {},
+                            Default = dropConfig.Default or "None",
+                            Flag = dropConfig.Flag or Library:NewFlag(),
+                            Callback = dropConfig.Callback or function() end,
+                            Parent = parentResolver(),
+                        })
+                    end,
+                    AddColorpicker = function(_, cpConfig)
+                        cpConfig = cpConfig or {}
+                        local label = Library:Label({ Message = cpConfig.Name or "Colorpicker", Parent = parentResolver() })
+                        return label:ColorPicker({
+                            Default = cpConfig.Default or Library.Theme.Default.Accent,
+                            Flag = cpConfig.Flag or Library:NewFlag(),
+                            Callback = cpConfig.Callback or function() end,
+                        })
+                    end,
+                    AddBind = function(_, bindConfig)
+                        bindConfig = bindConfig or {}
+                        local label = Library:Label({ Message = bindConfig.Name or "Bind", Parent = parentResolver() })
+                        return label:Keybind({
+                            Default = bindConfig.Default or Enum.KeyCode.Backspace,
+                            Mode = bindConfig.Hold and "On hotkey" or "Toggle",
+                            Flag = bindConfig.Flag or Library:NewFlag(),
+                            Callback = bindConfig.Callback or function() end,
+                        })
+                    end,
+                    AddLabel = function(_, labelConfig)
+                        labelConfig = labelConfig or {}
+                        return Library:Label({ Message = labelConfig.Text or "Label", Parent = parentResolver() })
+                    end,
+                    AddParagraph = function(_, paraConfig)
+                        paraConfig = paraConfig or {}
+                        return Library:Label({ Message = paraConfig.Text .. "\n" .. paraConfig.Content, Parent = parentResolver() })
+                    end,
+                    AddTextbox = function(_, tbConfig)
+                        tbConfig = tbConfig or {}
+                        return Library:TextBox({
+                            Name = tbConfig.Name or "Textbox",
+                            Default = tbConfig.Default or "",
+                            ClearOnFocus = tbConfig.TextDisappear or false,
+                            Flag = tbConfig.Flag or Library:NewFlag(),
+                            Callback = tbConfig.Callback or function() end,
+                            Parent = parentResolver(),
+                        })
+                    end,
+                    AddMultiBox = function(_, mbConfig)
+                        mbConfig = mbConfig or {}
+                        return Library:MultiBox({
+                            Name = mbConfig.Name or "MultiBox",
+                            Content = mbConfig.Options or {},
+                            Default = mbConfig.Default or {},
+                            Flag = mbConfig.Flag or Library:NewFlag(),
+                            Callback = mbConfig.Callback or function() end,
+                            Parent = parentResolver(),
+                        })
+                    end,
+                }
+            end
+
+            -- Default logic returns the tab's default Section ContentHolder
+            local tabObj = createElements(function() return getDefaultSection(tab).Elements.ContentHolder end)
+
+            -- Creating a new Section returns the resolver wrapped around that new Section's ContentHolder
+            tabObj.AddSection = function(_, sectionConfig)
+                sectionConfig = sectionConfig or {}
+                local section = tab:Section({
+                    Name = sectionConfig.Name or "Section",
+                    Side = sectionConfig.Side or "Left",
+                    Fill = true,
+                })
+                return createElements(function() return section.Elements.ContentHolder end)
+            end
+
+            return tabObj
         end,
         MakeNotification = function(_, notifConfig)
             notifConfig = notifConfig or {}
