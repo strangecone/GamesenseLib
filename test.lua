@@ -6119,5 +6119,3 @@ function GamesenseLib:MakeWindow(config)
 end
 
 return GamesenseLib
-
-return GamesenseLib
