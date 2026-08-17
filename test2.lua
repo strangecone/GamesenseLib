@@ -1,9 +1,8 @@
 --[[
     Gamesense Library (FULL)
     - Section default height: 150px
-    - Built-in tabs: Settings, Player List, Configs – non-removable
-    - Player List updates automatically
-    - Middle notification demo included
+    - Built-in tabs: Settings (first), Player List (second), Configs (third) – non-removable
+    - Middle notifications demo included
     Usage:
         local Gamesense = loadstring(game:HttpGet("..."))()
         local Window = Gamesense:MakeWindow({Name = "My Script", SaveConfig = true})
@@ -3428,7 +3427,7 @@ do -- Library
     end
 
     -- ============================================================
-    -- WINDOW CREATION
+    -- WINDOW CREATION (with section height fix: 150)
     -- ============================================================
     function Library:Window(Options)
         Options = Library:Validate({
@@ -3890,7 +3889,7 @@ do -- Library
                     Name = "Preview Section",
                     Side = "Left",
                     Fill = false,
-                    Size = UDim2.new(1, 0, 0, 150),  -- default height 150
+                    Size = UDim2.new(1, 0, 0, 150),
                     ParentOptions = {},
                     Icon = nil,
                     Parent = nil,
@@ -5347,7 +5346,7 @@ end
 function GamesenseLib:Init()
     local window = CurrentWindow
     if window and not BuiltInAdded then
-        -- 1. Settings tab
+        -- 1. Settings tab (non-removable)
         local SettingsTab = window:CreateTab({Icon = "rbxassetid://15453349637"})
         local SettingsSection = SettingsTab:Section({Name = "Settings", Side = "Right", Fill = true})
         SettingsSection:Label({Message = "Menu key"}):Keybind({Default = Enum.KeyCode.Insert, UseMode = false, Callback = function(Key) Library.UI.CloseBind = Key end})
@@ -5364,12 +5363,11 @@ function GamesenseLib:Init()
         SettingsSection:Button({Name = "Unload", Callback = Library.Unload})
         SettingsSection:Button({Name = "Disable all", Callback = Library.Disable})
 
-        -- 2. Player List tab (unremovable, above Configs)
+        -- 2. Player List tab (non-removable, above Configs)
         local PlayerListTab = window:CreateTab({Icon = "rbxassetid://15453359751"})
         local PlayerSection = PlayerListTab:Section({Name = "Players", Fill = true})
         local PlayerAdjustments = PlayerListTab:Section({Name = "Adjustments", Fill = true, Side = "Right"})
 
-        -- Player list
         local ActualPlayerList = PlayerSection:List({Flag = "PlayerListCurrentPlayer", Size = 300})
         for _, Player in Players:GetPlayers() do
             ActualPlayerList:AddValue(Player.Name, {Image = Players:GetUserThumbnailAsync(Player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)})
@@ -5378,7 +5376,6 @@ function GamesenseLib:Init()
             local Player = Players:FindFirstChild(Library.Flags["PlayerListCurrentPlayer"]:Get())
             if Player then Library:ViewPlayer(Player) end
         end})
-        -- Adjustments
         PlayerAdjustments:Toggle({Name = "Whitelisted"})
 
         -- Update list on joins/leaves
@@ -5389,7 +5386,7 @@ function GamesenseLib:Init()
             ActualPlayerList:RemoveValue(Player.Name)
         end)
 
-        -- 3. Configs tab
+        -- 3. Configs tab (non-removable, after Player List)
         local ConfigsTab = window:CreateTab({Icon = "rbxassetid://15453364412"})
         local ConfigSection = ConfigsTab:Section({Name = "Configs", Fill = true})
         local LuaSection = ConfigsTab:Section({Name = "LUA", Side = "Right", Fill = true})
@@ -5446,38 +5443,26 @@ end
 getgenv().GamesenseLib = GamesenseLib
 
 -- ============================================================
--- DEMO: Middle Notifications & Example Usage
+-- MIDDLE NOTIFICATION DEMO
 -- ============================================================
-do
-    -- Create some example tabs if you want to demonstrate the library
-    local Window = GamesenseLib:MakeWindow({Name = "Example Script", SaveConfig = true})
-    local Rage = Window:CreateTab({Icon = "rbxassetid://18248771514"})
-    local AntiAim = Window:CreateTab({Icon = "rbxassetid://15453313321"})
-    local Aimbot = Window:CreateTab({Icon = "rbxassetid://15453335745"})
-    local Visuals = Window:CreateTab({Icon = "rbxassetid://15453344494"})
-    local Weapons = Window:CreateTab({Icon = "rbxassetid://15453354931"})
-    local LuaTab = Window:CreateTab({Icon = "rbxassetid://18240049800"})
-
-    -- Add a dummy section to show something
-    local DemoSection = Rage:Section({Name = "Rage Settings", Fill = true})
-    DemoSection:Toggle({Name = "Enable Rage", Default = true})
-    DemoSection:Slider({Name = "FOV", Min = 0, Max = 180, Default = 90, Ending = "°"})
-
-    -- Initialize
-    GamesenseLib:Init()
-
-    -- Middle notification demo (like the headshot spam)
-    task.spawn(function()
-        local Position = "Top Left"
-        for i = 1, 10 do
-            local R, G, B = Library.Theme.Default.Accent.R * 255, Library.Theme.Default.Accent.G * 255, Library.Theme.Default.Accent.B * 255
-            local Message = string.format("hit <font color='rgb(%d,%d,%d)'>awesomegamer5</font> in the <font color='rgb(%d,%d,%d)'>head</font> for <font color='rgb(%d,%d,%d)'>100</font> damage (0 health remaining)",
-                R, G, B, R, G, B, R, G, B)
-            Library:Notify({Message = Message, Position = Position, Delay = 3})
-            Position = (Position == "Top Left") and "Middle" or "Top Left"
-            task.wait(0.5)
-        end
-    end)
-end
+-- This demo alternates between top-left and middle notifications,
+-- simulating the headshot spam from the original gamesense.lua.
+task.spawn(function()
+    local Position = "Top Left"
+    for i = 1, 10 do
+        local R, G, B = Library.Theme.Default.Accent.R * 255, Library.Theme.Default.Accent.G * 255, Library.Theme.Default.Accent.B * 255
+        local Message = string.format(
+            "hit <font color='rgb(%d,%d,%d)'>awesomegamer%d</font> in the <font color='rgb(%d,%d,%d)'>head</font> for <font color='rgb(%d,%d,%d)'>100</font> damage (0 health remaining)",
+            R, G, B, i, R, G, B, R, G, B
+        )
+        GamesenseLib:MakeNotification({
+            Content = Message,
+            Time = 3,
+            Position = Position
+        })
+        Position = (Position == "Top Left") and "Middle" or "Top Left"
+        task.wait(0.5)
+    end
+end)
 
 return GamesenseLib
